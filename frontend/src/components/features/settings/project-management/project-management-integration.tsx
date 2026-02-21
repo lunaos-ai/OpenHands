@@ -14,21 +14,21 @@ export function ProjectManagementIntegration() {
         {t(I18nKey.PROJECT_MANAGEMENT$TITLE)}
       </h3>
       <div className="flex flex-col gap-4">
-        {config?.feature_flags?.enable_jira && (
+        {config?.FEATURE_FLAGS?.ENABLE_JIRA && (
           <IntegrationRow
             platform="jira"
             platformName="Jira Cloud"
             data-testid="jira-integration-row"
           />
         )}
-        {config?.feature_flags?.enable_jira_dc && (
+        {config?.FEATURE_FLAGS?.ENABLE_JIRA_DC && (
           <IntegrationRow
             platform="jira-dc"
             platformName="Jira Data Center"
             data-testid="jira-dc-integration-row"
           />
         )}
-        {config?.feature_flags?.enable_linear && (
+        {config?.FEATURE_FLAGS?.ENABLE_LINEAR && (
           <IntegrationRow
             platform="linear"
             platformName="Linear"

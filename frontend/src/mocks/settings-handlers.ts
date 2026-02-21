@@ -1,5 +1,5 @@
 import { http, delay, HttpResponse } from "msw";
-import { WebClientConfig } from "#/api/option-service/option.types";
+import { GetConfigResponse } from "#/api/option-service/option.types";
 import { DEFAULT_SETTINGS } from "#/services/settings";
 import { Provider, Settings } from "#/types/settings";
 
@@ -66,29 +66,24 @@ export const SETTINGS_HANDLERS = [
     HttpResponse.json(["llm", "none"]),
   ),
 
-  http.get("/api/v1/web-client/config", () => {
+  http.get("/api/options/config", () => {
     const mockSaas = import.meta.env.VITE_MOCK_SAAS === "true";
 
-    const config: WebClientConfig = {
-      app_mode: mockSaas ? "saas" : "oss",
-      posthog_client_key: "fake-posthog-client-key",
-      feature_flags: {
-        enable_billing: false,
-        hide_llm_settings: mockSaas,
-        enable_jira: false,
-        enable_jira_dc: false,
-        enable_linear: false,
+    const config: GetConfigResponse = {
+      APP_MODE: mockSaas ? "saas" : "oss",
+      GITHUB_CLIENT_ID: "fake-github-client-id",
+      POSTHOG_CLIENT_KEY: "fake-posthog-client-key",
+      FEATURE_FLAGS: {
+        ENABLE_BILLING: false,
+        HIDE_LLM_SETTINGS: mockSaas,
+        ENABLE_JIRA: false,
+        ENABLE_JIRA_DC: false,
+        ENABLE_LINEAR: false,
       },
-      providers_configured: [],
-      maintenance_start_time: null,
       // Uncomment the following to test the maintenance banner
-      // maintenance_start_time: "2024-01-15T10:00:00-05:00", // EST timestamp
-      auth_url: null,
-      recaptcha_site_key: null,
-      faulty_models: [],
-      error_message: null,
-      updated_at: new Date().toISOString(),
-      github_app_slug: mockSaas ? "openhands" : null,
+      // MAINTENANCE: {
+      //   startTime: "2024-01-15T10:00:00-05:00", // EST timestamp
+      // },
     };
 
     return HttpResponse.json(config);

@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from storage.api_key_store import ApiKeyStore
+
 if TYPE_CHECKING:
     from openhands.core.config.openhands_config import OpenHandsConfig
 
@@ -22,7 +24,7 @@ from openhands.core.logger import openhands_logger as logger
 # NOTE: these details are specific to the MCP protocol
 class SaaSOpenHandsMCPConfig(OpenHandsMCPConfig):
     @staticmethod
-    async def create_default_mcp_server_config(
+    def create_default_mcp_server_config(
         host: str, config: 'OpenHandsConfig', user_id: str | None = None
     ) -> tuple[MCPSHTTPServerConfig | None, list[MCPStdioServerConfig]]:
         """
@@ -34,16 +36,13 @@ class SaaSOpenHandsMCPConfig(OpenHandsMCPConfig):
         Returns:
             A tuple containing the default SSE server configuration and a list of MCP stdio server configurations
         """
-        from storage.api_key_store import ApiKeyStore
 
         api_key_store = ApiKeyStore.get_instance()
         if user_id:
-            api_key = await api_key_store.retrieve_mcp_api_key(user_id)
+            api_key = api_key_store.retrieve_mcp_api_key(user_id)
 
             if not api_key:
-                api_key = await api_key_store.create_api_key(
-                    user_id, 'MCP_API_KEY', None
-                )
+                api_key = api_key_store.create_api_key(user_id, 'MCP_API_KEY', None)
 
             if not api_key:
                 logger.error(f'Could not provision MCP API Key for user: {user_id}')

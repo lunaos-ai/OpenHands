@@ -1,20 +1,20 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
-from openhands.agent_server.models import OpenHandsModel, SendMessageRequest
+from openhands.agent_server.models import SendMessageRequest
 from openhands.agent_server.utils import OpenHandsUUID, utc_now
 from openhands.app_server.event_callback.event_callback_models import (
     EventCallbackProcessor,
 )
 from openhands.app_server.sandbox.sandbox_models import SandboxStatus
-from openhands.integrations.service_types import ProviderType, SuggestedTask
+from openhands.integrations.service_types import ProviderType
 from openhands.sdk.conversation.state import ConversationExecutionStatus
 from openhands.sdk.llm import MetricsSnapshot
-from openhands.sdk.plugin import PluginSource
+from openhands.sdk.utils.models import OpenHandsModel
 from openhands.storage.data_models.conversation_metadata import ConversationTrigger
 
 
@@ -23,45 +23,6 @@ class AgentType(Enum):
 
     DEFAULT = 'default'
     PLAN = 'plan'
-
-
-class PluginSpec(PluginSource):
-    """Specification for loading a plugin into a conversation.
-
-    Extends SDK's PluginSource with user-provided plugin configuration parameters.
-    Inherits source, ref, and repo_path fields along with their validation.
-    """
-
-    parameters: dict[str, Any] | None = Field(
-        default=None,
-        description='User-provided values for plugin input parameters',
-    )
-
-    @property
-    def display_name(self) -> str:
-        """Extract a friendly display name from the plugin source.
-
-        Examples:
-            - 'github:owner/repo' -> 'repo'
-            - 'https://github.com/owner/repo.git' -> 'repo.git'
-            - '/local/path' -> 'path'
-        """
-        return self.source.split('/')[-1] if '/' in self.source else self.source
-
-    def format_params_as_text(self, indent: str = '') -> str | None:
-        """Format parameters as a readable text block for display.
-
-        Args:
-            indent: Optional prefix to add before each parameter line.
-
-        Returns:
-            Formatted parameters string, or None if no parameters.
-        """
-        if not self.parameters:
-            return None
-        return '\n'.join(
-            f'{indent}- {key}: {value}' for key, value in self.parameters.items()
-        )
 
 
 class AppConversationInfo(BaseModel):
@@ -150,7 +111,6 @@ class AppConversationStartRequest(OpenHandsModel):
     selected_repository: str | None = None
     selected_branch: str | None = None
     git_provider: ProviderType | None = None
-    suggested_task: SuggestedTask | None = None
     title: str | None = None
     trigger: ConversationTrigger | None = None
     pr_number: list[int] = Field(default_factory=list)
@@ -158,15 +118,6 @@ class AppConversationStartRequest(OpenHandsModel):
     agent_type: AgentType = Field(default=AgentType.DEFAULT)
 
     public: bool | None = None
-
-    # Plugin parameters - for loading remote plugins into the conversation
-    plugins: list[PluginSpec] | None = Field(
-        default=None,
-        description=(
-            'List of plugins to load for this conversation. Plugins are loaded '
-            'and their skills/MCP config are merged into the agent.'
-        ),
-    )
 
 
 class AppConversationUpdateRequest(BaseModel):
@@ -197,8 +148,7 @@ class AppConversationStartTask(OpenHandsModel):
 
     Because starting an app conversation can be slow (And can involve starting a sandbox),
     we kick off a background task for it. Once the conversation is started, the app_conversation_id
-    is populated.
-    """
+    is populated."""
 
     id: OpenHandsUUID = Field(default_factory=uuid4)
     created_by_user_id: str | None
@@ -227,6 +177,6 @@ class SkillResponse(BaseModel):
     """Response model for skills endpoint."""
 
     name: str
-    type: Literal['repo', 'knowledge', 'agentskills']
+    type: Literal['repo', 'knowledge']
     content: str
     triggers: list[str] = []

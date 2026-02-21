@@ -13,6 +13,7 @@ from pydantic import (
 )
 from pydantic.json import pydantic_encoder
 
+from openhands.events.stream import EventStream
 from openhands.integrations.provider import (
     CUSTOM_SECRETS_TYPE,
     PROVIDER_TOKEN_TYPE,
@@ -142,6 +143,14 @@ class Secrets(BaseModel):
                 new_data['custom_secrets'] = secrets
 
         return new_data
+
+    def set_event_stream_secrets(self, event_stream: EventStream) -> None:
+        """This ensures that provider tokens and custom secrets masked from the event stream
+        Args:
+            event_stream: Agent session's event stream
+        """
+        secrets = self.get_env_vars()
+        event_stream.set_secrets(secrets)
 
     def get_env_vars(self) -> dict[str, str]:
         secret_store = self.model_dump(context={'expose_secrets': True})

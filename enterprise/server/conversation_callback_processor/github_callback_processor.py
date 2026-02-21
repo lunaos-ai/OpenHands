@@ -14,6 +14,7 @@ from storage.conversation_callback import (
     ConversationCallback,
     ConversationCallbackProcessor,
 )
+from storage.database import session_maker
 
 from openhands.core.logger import openhands_logger as logger
 from openhands.core.schema.agent import AgentState
@@ -107,10 +108,13 @@ class GithubCallbackProcessor(ConversationCallbackProcessor):
                     f'[GitHub] Sent summary instruction to conversation {conversation_id} {summary_event}'
                 )
 
-                # Update the processor state - the outer session will commit this
+                # Update the processor state
                 self.send_summary_instruction = False
                 callback.set_processor(self)
                 callback.updated_at = datetime.now()
+                with session_maker() as session:
+                    session.merge(callback)
+                    session.commit()
                 return
 
             # Extract the summary from the event store
@@ -126,15 +130,14 @@ class GithubCallbackProcessor(ConversationCallbackProcessor):
 
             logger.info(f'[GitHub] Summary sent for conversation {conversation_id}')
 
-            # Mark callback as completed status - the outer session will commit this
+            # Mark callback as completed status
             callback.status = CallbackStatus.COMPLETED
             callback.updated_at = datetime.now()
+            with session_maker() as session:
+                session.merge(callback)
+                session.commit()
 
         except Exception as e:
             logger.exception(
                 f'[GitHub] Error processing conversation callback: {str(e)}'
             )
-            # Mark callback as error to prevent infinite re-invocation
-            # The outer session will commit this
-            callback.status = CallbackStatus.ERROR
-            callback.updated_at = datetime.now()

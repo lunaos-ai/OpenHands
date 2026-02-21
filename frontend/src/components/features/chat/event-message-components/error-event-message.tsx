@@ -18,7 +18,7 @@ interface ErrorEventMessageProps {
   }>;
   isLastMessage: boolean;
   isInLast10Actions: boolean;
-  config?: { app_mode?: string } | null;
+  config?: { APP_MODE?: string } | null;
   isCheckingFeedback: boolean;
   feedbackData: {
     exists: boolean;

@@ -63,13 +63,9 @@ class AuthUserContext(UserContext):
             self._provider_handler = provider_handler
         return provider_handler
 
-    async def get_authenticated_git_url(
-        self, repository: str, is_optional: bool = False
-    ) -> str:
+    async def get_authenticated_git_url(self, repository: str) -> str:
         provider_handler = await self.get_provider_handler()
-        url = await provider_handler.get_authenticated_git_url(
-            repository, is_optional=is_optional
-        )
+        url = await provider_handler.get_authenticated_git_url(repository)
         return url
 
     async def get_latest_token(self, provider_type: ProviderType) -> str | None:

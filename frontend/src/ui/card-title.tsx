@@ -5,19 +5,19 @@ import { cn } from "#/utils/utils";
 const cardTitleVariants = cva("flex items-center", {
   variants: {
     gap: {
-      default: "gap-[10px]",
+      default: "gap-2.5",
     },
     textSize: {
-      default: "text-base",
+      default: "text-[17px]",
     },
     fontWeight: {
-      default: "font-bold",
+      default: "font-semibold",
     },
     textColor: {
-      default: "text-white",
+      default: "text-[var(--hig-text-primary)]",
     },
     lineHeight: {
-      default: "leading-5",
+      default: "leading-6",
     },
   },
   defaultVariants: {

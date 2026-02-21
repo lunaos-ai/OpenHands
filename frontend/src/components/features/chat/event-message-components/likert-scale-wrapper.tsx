@@ -8,7 +8,7 @@ interface LikertScaleWrapperProps {
   event: OpenHandsAction | OpenHandsObservation;
   isLastMessage: boolean;
   isInLast10Actions: boolean;
-  config?: { app_mode?: string } | null;
+  config?: { APP_MODE?: string } | null;
   isCheckingFeedback: boolean;
   feedbackData: {
     exists: boolean;
@@ -25,7 +25,7 @@ export function LikertScaleWrapper({
   isCheckingFeedback,
   feedbackData,
 }: LikertScaleWrapperProps) {
-  if (config?.app_mode !== "saas" || isCheckingFeedback) {
+  if (config?.APP_MODE !== "saas" || isCheckingFeedback) {
     return null;
   }
 

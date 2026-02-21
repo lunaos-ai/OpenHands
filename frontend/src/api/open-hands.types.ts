@@ -110,7 +110,7 @@ export interface InputMetadata {
 
 export interface Microagent {
   name: string;
-  type: "repo" | "knowledge" | "agentskills";
+  type: "repo" | "knowledge";
   content: string;
   triggers: string[];
 }

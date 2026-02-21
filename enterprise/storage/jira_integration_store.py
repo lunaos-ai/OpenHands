@@ -118,7 +118,9 @@ class JiraIntegrationStore:
                 .first()
             )
 
-    async def get_workspace_by_name(self, workspace_name: str) -> JiraWorkspace | None:
+    async def get_workspace_by_name(
+        self, workspace_name: str
+    ) -> Optional[JiraWorkspace]:
         """Retrieve workspace by name."""
         with session_maker() as session:
             return (

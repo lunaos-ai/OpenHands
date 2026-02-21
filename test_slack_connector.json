@@ -1,0 +1,102 @@
+{
+  "name": "slack-messaging-connector",
+  "specType": "openapi",
+  "spec": {
+    "openapi": "3.0.0",
+    "info": {
+      "title": "Slack Web API",
+      "version": "2024-01-01"
+    },
+    "servers": [{"url": "https://slack.com/api"}],
+    "paths": {
+      "/chat.postMessage": {
+        "post": {
+          "summary": "Send a message to a channel",
+          "operationId": "postMessage",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channel": {"type": "string"},
+                    "text": {"type": "string"},
+                    "thread_ts": {"type": "string"}
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Message posted"
+            }
+          }
+        }
+      },
+      "/conversations.list": {
+        "get": {
+          "summary": "List conversations",
+          "operationId": "listConversations",
+          "parameters": [
+            {"name": "types", "in": "query", "schema": {"type": "string"}},
+            {"name": "limit", "in": "query", "schema": {"type": "integer"}}
+          ],
+          "responses": {
+            "200": {
+              "description": "List of conversations"
+            }
+          }
+        }
+      },
+      "/users.list": {
+        "get": {
+          "summary": "List users",
+          "operationId": "listUsers",
+          "parameters": [
+            {"name": "limit", "in": "query", "schema": {"type": "integer"}}
+          ],
+          "responses": {
+            "200": {
+              "description": "List of users"
+            }
+          }
+        }
+      },
+      "/files.upload": {
+        "post": {
+          "summary": "Upload a file",
+          "operationId": "uploadFile",
+          "requestBody": {
+            "content": {
+              "multipart/form-data": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channels": {"type": "string"},
+                    "file": {"type": "string", "format": "binary"},
+                    "filename": {"type": "string"}
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "File uploaded"
+            }
+          }
+        }
+      }
+    }
+  },
+  "language": "typescript",
+  "runtime": "cloudflare-workers",
+  "authConfig": {
+    "type": "apikey",
+    "config": {
+      "header": "Authorization",
+      "prefix": "Bearer"
+    }
+  }
+}

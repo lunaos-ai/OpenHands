@@ -32,13 +32,10 @@ CONVERSATION_URL = HOST + '/conversations/{}'
 
 
 async def get_conversation_link(
-    service: GitService, conversation_id: str | None, body: str
+    service: GitService, conversation_id: str, body: str
 ) -> str:
     """Appends a followup link, in the PR body, to the OpenHands conversation that opened the PR"""
     if server_config.app_mode != AppMode.SAAS:
-        return body
-
-    if not conversation_id:
         return body
 
     user = await service.get_user()

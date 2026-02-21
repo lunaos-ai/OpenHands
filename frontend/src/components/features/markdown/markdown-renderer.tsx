@@ -73,13 +73,8 @@ export function MarkdownRenderer({
   const markdownContent = content ?? children ?? "";
 
   return (
-    <div data-testid="markdown-renderer">
-      <Markdown
-        components={components}
-        remarkPlugins={[remarkGfm, remarkBreaks]}
-      >
-        {markdownContent}
-      </Markdown>
-    </div>
+    <Markdown components={components} remarkPlugins={[remarkGfm, remarkBreaks]}>
+      {markdownContent}
+    </Markdown>
   );
 }

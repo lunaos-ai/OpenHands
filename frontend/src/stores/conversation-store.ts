@@ -1,9 +1,5 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import {
-  getConversationState,
-  setConversationState,
-} from "#/utils/conversation-local-storage";
 
 export type ConversationTab =
   | "editor"
@@ -109,20 +105,6 @@ const getInitialRightPanelState = (): boolean => {
   return true;
 };
 
-const getInitialConversationMode = (): ConversationMode => {
-  if (typeof window === "undefined") {
-    return "code";
-  }
-
-  const conversationId = getConversationIdFromLocation();
-  if (!conversationId) {
-    return "code";
-  }
-
-  const state = getConversationState(conversationId);
-  return state.conversationMode;
-};
-
 export const useConversationStore = create<ConversationStore>()(
   devtools(
     (set) => ({
@@ -139,7 +121,7 @@ export const useConversationStore = create<ConversationStore>()(
       shouldHideSuggestions: false,
       hasRightPanelToggled: true,
       planContent: null,
-      conversationMode: getInitialConversationMode(),
+      conversationMode: "code",
       subConversationTaskId: null,
 
       // Actions
@@ -275,7 +257,7 @@ export const useConversationStore = create<ConversationStore>()(
         set(
           {
             shouldHideSuggestions: false,
-            conversationMode: getInitialConversationMode(),
+            conversationMode: "code",
             subConversationTaskId: null,
             planContent: null,
           },
@@ -286,13 +268,8 @@ export const useConversationStore = create<ConversationStore>()(
       setHasRightPanelToggled: (hasRightPanelToggled) =>
         set({ hasRightPanelToggled }, false, "setHasRightPanelToggled"),
 
-      setConversationMode: (conversationMode) => {
-        const conversationId = getConversationIdFromLocation();
-        if (conversationId) {
-          setConversationState(conversationId, { conversationMode });
-        }
-        set({ conversationMode }, false, "setConversationMode");
-      },
+      setConversationMode: (conversationMode) =>
+        set({ conversationMode }, false, "setConversationMode"),
 
       setSubConversationTaskId: (subConversationTaskId) =>
         set({ subConversationTaskId }, false, "setSubConversationTaskId"),

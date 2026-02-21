@@ -5,7 +5,6 @@ import LessonPlanIcon from "#/icons/lesson-plan.svg?react";
 import { useConversationStore } from "#/stores/conversation-store";
 import { useScrollToBottom } from "#/hooks/use-scroll-to-bottom";
 import { MarkdownRenderer } from "#/components/features/markdown/markdown-renderer";
-import { planComponents } from "#/components/features/markdown/plan-components";
 import { useHandlePlanClick } from "#/hooks/use-handle-plan-click";
 
 function PlannerTab() {
@@ -24,7 +23,7 @@ function PlannerTab() {
         onScroll={(e) => onChatBodyScroll(e.currentTarget)}
         className="flex flex-col w-full h-full p-4 overflow-auto"
       >
-        <MarkdownRenderer includeStandard components={planComponents}>
+        <MarkdownRenderer includeStandard includeHeadings>
           {planContent}
         </MarkdownRenderer>
       </div>

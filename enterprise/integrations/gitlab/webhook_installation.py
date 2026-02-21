@@ -167,15 +167,17 @@ async def install_webhook_on_resource(
         scopes=SCOPES,
     )
 
-    log_extra = {
-        'webhook_id': webhook_id,
-        'status': status,
-        'resource_id': resource_id,
-        'resource_type': resource_type,
-    }
+    logger.info(
+        'Creating new webhook',
+        extra={
+            'webhook_id': webhook_id,
+            'status': status,
+            'resource_id': resource_id,
+            'resource_type': resource_type,
+        },
+    )
 
     if status == WebhookStatus.RATE_LIMITED:
-        logger.warning('Rate limited while creating webhook', extra=log_extra)
         raise BreakLoopException()
 
     if webhook_id:
@@ -189,8 +191,9 @@ async def install_webhook_on_resource(
                 'webhook_uuid': webhook_uuid,  # required to identify which webhook installation is sending payload
             },
         )
-        logger.info('Created new webhook', extra=log_extra)
-    else:
-        logger.error('Failed to create webhook', extra=log_extra)
+
+        logger.info(
+            f'Installed webhook for {webhook.user_id} on {resource_type}:{resource_id}'
+        )
 
     return webhook_id, status

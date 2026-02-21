@@ -21,16 +21,18 @@ from openhands.app_server.app_conversation.app_conversation_service import (
     AppConversationService,
 )
 from openhands.app_server.app_conversation.skill_loader import (
-    build_org_config,
-    build_sandbox_config,
-    load_skills_from_agent_server,
+    load_global_skills,
+    load_org_skills,
+    load_repo_skills,
+    load_sandbox_skills,
+    merge_skills,
 )
 from openhands.app_server.sandbox.sandbox_models import SandboxInfo
 from openhands.app_server.user.user_context import UserContext
 from openhands.sdk import Agent
 from openhands.sdk.context.agent_context import AgentContext
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
-from openhands.sdk.context.skills import Skill
+from openhands.sdk.context.skills import load_user_skills
 from openhands.sdk.llm import LLM
 from openhands.sdk.security.analyzer import SecurityAnalyzerBase
 from openhands.sdk.security.confirmation_policy import (
@@ -51,8 +53,7 @@ PRE_COMMIT_LOCAL = '.git/hooks/pre-commit.local'
 class AppConversationServiceBase(AppConversationService, ABC):
     """App Conversation service which adds git specific functionality.
 
-    Sets up repositories and installs hooks
-    """
+    Sets up repositories and installs hooks"""
 
     init_git_in_empty_workspace: bool
     user_context: UserContext
@@ -60,74 +61,67 @@ class AppConversationServiceBase(AppConversationService, ABC):
     async def load_and_merge_all_skills(
         self,
         sandbox: SandboxInfo,
+        remote_workspace: AsyncRemoteWorkspace,
         selected_repository: str | None,
         working_dir: str,
-        agent_server_url: str,
-    ) -> list[Skill]:
-        """Load skills from all sources via the agent-server.
+    ) -> list:
+        """Load skills from all sources and merge them.
 
-        This method calls the agent-server's /api/skills endpoint to load and
-        merge skills from all sources. The agent-server handles:
-        - Public skills (from OpenHands/skills GitHub repo)
-        - User skills (from ~/.openhands/skills/)
-        - Organization skills (from {org}/.openhands repo)
-        - Project/repo skills (from workspace .openhands/skills/)
-        - Sandbox skills (from exposed URLs)
+        This method handles all errors gracefully and will return an empty list
+        if skill loading fails completely.
 
         Args:
-            sandbox: SandboxInfo containing exposed URLs and agent-server URL
+            remote_workspace: AsyncRemoteWorkspace for loading repo skills
             selected_repository: Repository name or None
             working_dir: Working directory path
-            agent_server_url: Agent-server URL (required)
 
         Returns:
             List of merged Skill objects from all sources, or empty list on failure
         """
         try:
-            _logger.debug('Loading skills for V1 conversation via agent-server')
+            _logger.debug('Loading skills for V1 conversation')
 
-            if not agent_server_url:
-                _logger.warning('No agent-server URL available, cannot load skills')
-                return []
+            # Load skills from all sources
+            sandbox_skills = load_sandbox_skills(sandbox)
+            global_skills = load_global_skills()
+            # Load user skills from ~/.openhands/skills/ directory
+            # Uses the SDK's load_user_skills() function which handles loading from
+            # ~/.openhands/skills/ and ~/.openhands/microagents/ (for backward compatibility)
+            try:
+                user_skills = load_user_skills()
+                _logger.info(
+                    f'Loaded {len(user_skills)} user skills: {[s.name for s in user_skills]}'
+                )
+            except Exception as e:
+                _logger.warning(f'Failed to load user skills: {str(e)}')
+                user_skills = []
 
-            # Build org config (authentication handled by app-server)
-            org_config = await build_org_config(selected_repository, self.user_context)
+            # Load organization-level skills
+            org_skills = await load_org_skills(
+                remote_workspace, selected_repository, working_dir, self.user_context
+            )
 
-            # Build sandbox config (exposed URLs)
-            sandbox_config = build_sandbox_config(sandbox)
+            repo_skills = await load_repo_skills(
+                remote_workspace, selected_repository, working_dir
+            )
 
-            # Determine project directory for project skills
-            project_dir = working_dir
-            if selected_repository:
-                repo_name = selected_repository.split('/')[-1]
-                project_dir = f'{working_dir}/{repo_name}'
-
-            # Single API call to agent-server for ALL skills
-            all_skills = await load_skills_from_agent_server(
-                agent_server_url=agent_server_url,
-                session_api_key=sandbox.session_api_key,
-                project_dir=project_dir,
-                org_config=org_config,
-                sandbox_config=sandbox_config,
-                load_public=True,
-                load_user=True,
-                load_project=True,
-                load_org=True,
+            # Merge all skills (later lists override earlier ones)
+            # Precedence: sandbox < global < user < org < repo
+            all_skills = merge_skills(
+                [sandbox_skills, global_skills, user_skills, org_skills, repo_skills]
             )
 
             _logger.info(
-                f'Loaded {len(all_skills)} total skills from agent-server: '
-                f'{[s.name for s in all_skills]}'
+                f'Loaded {len(all_skills)} total skills: {[s.name for s in all_skills]}'
             )
 
             return all_skills
-
         except Exception as e:
             _logger.warning(f'Failed to load skills: {e}', exc_info=True)
             # Return empty list on failure - skills will be loaded again later if needed
             return []
 
-    def _create_agent_with_skills(self, agent, skills: list[Skill]):
+    def _create_agent_with_skills(self, agent, skills: list):
         """Create or update agent with skills in its context.
 
         Args:
@@ -138,9 +132,9 @@ class AppConversationServiceBase(AppConversationService, ABC):
             Updated agent with skills in context
         """
         if agent.agent_context:
-            # Merge with existing context (new skills override existing ones)
+            # Merge with existing context
             existing_skills = agent.agent_context.skills
-            all_skills = self._merge_skills([existing_skills, skills])
+            all_skills = merge_skills([skills, existing_skills])
             agent = agent.model_copy(
                 update={
                     'agent_context': agent.agent_context.model_copy(
@@ -154,25 +148,6 @@ class AppConversationServiceBase(AppConversationService, ABC):
             agent = agent.model_copy(update={'agent_context': agent_context})
 
         return agent
-
-    def _merge_skills(self, skill_lists: list[list[Skill]]) -> list[Skill]:
-        """Merge multiple skill lists, avoiding duplicates by name.
-
-        Later lists take precedence over earlier lists for duplicate names.
-
-        Args:
-            skill_lists: List of skill lists to merge
-
-        Returns:
-            Deduplicated list of skills with later lists overriding earlier ones
-        """
-        skills_by_name: dict[str, Skill] = {}
-
-        for skill_list in skill_lists:
-            for skill in skill_list:
-                skills_by_name[skill.name] = skill
-
-        return list(skills_by_name.values())
 
     async def _load_skills_and_update_agent(
         self,
@@ -194,10 +169,8 @@ class AppConversationServiceBase(AppConversationService, ABC):
             Updated agent with skills loaded into context
         """
         # Load and merge all skills
-        # Extract agent_server_url from remote_workspace host
-        agent_server_url = remote_workspace.host
         all_skills = await self.load_and_merge_all_skills(
-            sandbox, selected_repository, working_dir, agent_server_url
+            sandbox, remote_workspace, selected_repository, working_dir
         )
 
         # Update agent with skills
@@ -210,7 +183,6 @@ class AppConversationServiceBase(AppConversationService, ABC):
         task: AppConversationStartTask,
         sandbox: SandboxInfo,
         workspace: AsyncRemoteWorkspace,
-        agent_server_url: str,
     ) -> AsyncGenerator[AppConversationStartTask, None]:
         task.status = AppConversationStartTaskStatus.PREPARING_REPOSITORY
         yield task
@@ -228,9 +200,9 @@ class AppConversationServiceBase(AppConversationService, ABC):
         yield task
         await self.load_and_merge_all_skills(
             sandbox,
+            workspace,
             task.request.selected_repository,
             workspace.working_dir,
-            agent_server_url,
         )
 
     async def _configure_git_user_settings(
@@ -485,6 +457,7 @@ class AppConversationServiceBase(AppConversationService, ABC):
             security_analyzer_str: String value from settings
             httpx_client: HTTP client for making API requests
         """
+
         if session_api_key is None:
             return
 

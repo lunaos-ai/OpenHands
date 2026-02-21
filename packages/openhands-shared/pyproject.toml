@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.26.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openhands-shared"
+version = "0.1.0"
+description = "Reusable OpenHands bridge API components"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "OpenHands" }
+]
+keywords = ["openhands", "fastapi", "bridge", "llm"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Framework :: FastAPI",
+]
+dependencies = [
+  "fastapi>=0.116.0",
+  "uvicorn>=0.35.0",
+  "pydantic>=2.0.0",
+  "litellm>=1.74.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/OpenHands/OpenHands"
+Repository = "https://github.com/OpenHands/OpenHands"
+Issues = "https://github.com/OpenHands/OpenHands/issues"
+
+[project.scripts]
+openhands-shared-server = "openhands_shared.bridge_api:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openhands_shared"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/openhands_shared",
+  "README.md",
+  "CHANGELOG.md",
+  "pyproject.toml",
+]

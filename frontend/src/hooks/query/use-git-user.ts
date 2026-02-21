@@ -28,7 +28,7 @@ export const useGitUser = () => {
         name: user.data.name,
         email: user.data.email,
         user: user.data.login,
-        mode: config?.app_mode || "oss",
+        mode: config?.APP_MODE || "oss",
       });
     }
   }, [user.data]);

@@ -305,7 +305,7 @@ describe("MicroagentManagement", () => {
 
     mockUseConfig.mockReturnValue({
       data: {
-        app_mode: "oss",
+        APP_MODE: "oss",
       },
     });
 

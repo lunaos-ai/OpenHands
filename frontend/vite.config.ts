@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
         "i18next-browser-languagedetector",
         "react-i18next",
         "axios",
+        "date-fns",
         "@uidotdev/usehooks",
         "react-icons/fa6",
         "react-icons/fa",
@@ -50,6 +51,8 @@ export default defineConfig(({ mode }) => {
         "tailwind-merge",
         "@heroui/react",
         "lucide-react",
+        "react-select",
+        "react-select/async",
         "@microlink/react-json-view",
         "socket.io-client",
         // These are discovered when launching conversations:

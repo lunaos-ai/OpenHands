@@ -1,4 +1,4 @@
-# IMPORTANT: LEGACY V0 CODE - Deprecated since version 1.0.0, scheduled for removal April 1, 2026
+# IMPORTANT: LEGACY V0 CODE
 # This file is part of the legacy (V0) implementation of OpenHands and will be removed soon as we complete the migration to V1.
 # OpenHands V1 uses the Software Agent SDK for the agentic core and runs a new application server. Please refer to:
 #   - V1 agentic core (SDK): https://github.com/OpenHands/software-agent-sdk
@@ -204,13 +204,12 @@ class CodeActAgent(Agent):
         condensed_history: list[Event] = []
         # Track which event IDs have been forgotten/condensed
         forgotten_event_ids: set[int] = set()
-        match self.condenser.condensed_history(state):
-            case View(events=events, forgotten_event_ids=forgotten_ids):
-                condensed_history = events
-                forgotten_event_ids = forgotten_ids
-
-            case Condensation(action=condensation_action):
-                return condensation_action
+        condenser_result = self.condenser.condensed_history(state)
+        if isinstance(condenser_result, View):
+            condensed_history = condenser_result.events
+            forgotten_event_ids = condenser_result.forgotten_event_ids
+        elif isinstance(condenser_result, Condensation):
+            return condenser_result.action
 
         logger.debug(
             f'Processing {len(condensed_history)} events from a total of {len(state.history)} events'

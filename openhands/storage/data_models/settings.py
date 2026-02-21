@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+import os
 
 from pydantic import (
     BaseModel,
@@ -33,9 +33,7 @@ class Settings(BaseModel):
     user_version: int | None = None
     remote_runtime_resource_factor: int | None = None
     # Planned to be removed from settings
-    secrets_store: Annotated[Secrets, Field(frozen=True)] = Field(
-        default_factory=Secrets
-    )
+    secrets_store: Secrets = Field(default_factory=Secrets, frozen=True)
     enable_default_condenser: bool = True
     enable_sound_notifications: bool = False
     enable_proactive_conversation_starters: bool = True
@@ -53,7 +51,7 @@ class Settings(BaseModel):
     email_verified: bool | None = None
     git_user_name: str | None = None
     git_user_email: str | None = None
-    v1_enabled: bool = True
+    v1_enabled: bool | None = Field(default=bool(os.getenv('V1_ENABLED') == '1'))
 
     model_config = ConfigDict(
         validate_assignment=True,

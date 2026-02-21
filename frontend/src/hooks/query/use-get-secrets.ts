@@ -7,7 +7,7 @@ export const useGetSecrets = () => {
   const { data: config } = useConfig();
   const { data: isAuthed } = useIsAuthed();
 
-  const isOss = config?.app_mode === "oss";
+  const isOss = config?.APP_MODE === "oss";
 
   return useQuery({
     queryKey: ["secrets"],

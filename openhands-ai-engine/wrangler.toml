@@ -1,0 +1,19 @@
+name = "openhands-ai-engine"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Environment variables will be set in the dashboard or .dev.vars
+
+# [[kv_namespaces]]
+# binding = "AI_CACHE"
+# id = "..."
+
+# [[d1_databases]]
+# binding = "AI_HISTORY"
+# database_name = "openhands-ai-history"
+# database_id = "..."
+
+# Enable Smart Placement to speed up globally
+[placement]
+mode = "smart"

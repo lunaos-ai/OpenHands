@@ -23,16 +23,8 @@ class UserContext(ABC):
         """Get the user info."""
 
     @abstractmethod
-    async def get_authenticated_git_url(
-        self, repository: str, is_optional: bool = False
-    ) -> str:
-        """Get an authenticated git URL for a repository.
-
-        Args:
-            repository: Repository name (owner/repo)
-            is_optional: If True, logs at debug level instead of error level
-                when repository is not found. Use for optional repositories.
-        """
+    async def get_authenticated_git_url(self, repository: str) -> str:
+        """Get the provider tokens for the user"""
 
     @abstractmethod
     async def get_provider_tokens(self) -> PROVIDER_TOKEN_TYPE | None:

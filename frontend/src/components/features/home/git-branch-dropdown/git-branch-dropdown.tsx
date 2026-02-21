@@ -87,6 +87,16 @@ export function GitBranchDropdown({
     [onBranchSelect],
   );
 
+  // Handle input value change
+  const handleInputValueChange = useCallback(
+    ({ inputValue: newInputValue }: { inputValue?: string }) => {
+      if (newInputValue !== undefined) {
+        setInputValue(newInputValue);
+      }
+    },
+    [],
+  );
+
   // Handle menu scroll for infinite loading
   const handleMenuScroll = useCallback(
     (event: React.UIEvent<HTMLUListElement>) => {
@@ -118,14 +128,8 @@ export function GitBranchDropdown({
     onSelectedItemChange: ({ selectedItem: newSelectedItem }) => {
       handleBranchSelect(newSelectedItem || null);
     },
+    onInputValueChange: handleInputValueChange,
     inputValue,
-    // Override Downshift's default input-click behavior to avoid closing/reopening
-    // the menu, which would reset scroll position and break search continuity.
-    stateReducer: (state, actionAndChanges) =>
-      actionAndChanges.type === useCombobox.stateChangeTypes.InputClick &&
-      state.isOpen
-        ? { ...actionAndChanges.changes, isOpen: true }
-        : actionAndChanges.changes,
   });
 
   // Reset branch selection when repository changes
@@ -172,12 +176,12 @@ export function GitBranchDropdown({
 
   // Initialize input value when selectedBranch changes (but not when user is typing)
   useEffect(() => {
-    if (selectedBranch && !isOpen) {
+    if (selectedBranch && !isOpen && inputValue !== selectedBranch.name) {
       setInputValue(selectedBranch.name);
-    } else if (!selectedBranch && !isOpen) {
+    } else if (!selectedBranch && !isOpen && inputValue) {
       setInputValue("");
     }
-  }, [selectedBranch, isOpen]);
+  }, [selectedBranch, isOpen, inputValue]);
 
   const isLoadingState = isLoading || isSearchLoading || isFetchingNextPage;
 
@@ -203,10 +207,6 @@ export function GitBranchDropdown({
               "disabled:bg-[#363636] disabled:cursor-not-allowed disabled:opacity-60",
               "pl-7 pr-16 text-sm font-normal leading-5", // Space for clear and toggle buttons
             ),
-            // Direct onChange for cursor position preservation
-            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-              setInputValue(e.target.value);
-            },
           })}
           data-testid="git-branch-dropdown-input"
         />

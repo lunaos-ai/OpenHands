@@ -80,11 +80,6 @@ export default function SharedConversation() {
                 {conversation.selected_repository}
               </div>
             )}
-            {conversation?.llm_model && (
-              <div className="text-sm text-neutral-400">
-                {t(I18nKey.LLM$MODEL)}: {conversation.llm_model}
-              </div>
-            )}
           </div>
         </div>
       </div>

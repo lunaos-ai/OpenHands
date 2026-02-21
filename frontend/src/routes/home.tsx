@@ -17,13 +17,13 @@ function HomeScreen() {
   return (
     <div
       data-testid="home-screen"
-      className="px-0 pt-4 bg-transparent h-full flex flex-col pt-[35px] overflow-y-auto rounded-xl lg:px-[42px] lg:pt-[42px] custom-scrollbar-always"
+      className="bg-transparent h-full flex flex-col overflow-y-auto rounded-[18px] px-3 pt-5 pb-4 md:px-5 md:pt-7 lg:px-8 lg:pt-9 custom-scrollbar-always"
     >
       <HomeHeader />
 
-      <div className="pt-[25px] flex justify-center">
+      <div className="pt-7 flex justify-center">
         <div
-          className="flex flex-col gap-5 px-6 sm:max-w-full sm:min-w-full md:flex-row lg:px-0 lg:max-w-[703px] lg:min-w-[703px]"
+          className="grid grid-cols-1 gap-5 w-full max-w-[860px] md:grid-cols-2"
           data-testid="home-screen-new-conversation-section"
         >
           <RepoConnector onRepoSelection={(repo) => setSelectedRepo(repo)} />
@@ -31,9 +31,9 @@ function HomeScreen() {
         </div>
       </div>
 
-      <div className="pt-4 flex sm:justify-start md:justify-center">
+      <div className="pt-5 flex justify-center">
         <div
-          className="flex flex-col gap-5 px-6 md:flex-row min-w-full md:max-w-full lg:px-0 lg:max-w-[703px] lg:min-w-[703px]"
+          className="grid grid-cols-1 gap-5 w-full max-w-[860px] md:grid-cols-2"
           data-testid="home-screen-recent-conversations-section"
         >
           <RecentConversations />

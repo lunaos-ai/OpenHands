@@ -85,9 +85,9 @@ function SecretsSettingsScreen() {
 
       {view === "list" && (
         <div className="border border-tertiary rounded-md overflow-hidden">
-          <table className="w-full min-w-full table-fixed">
+          <table className="w-full">
             <thead className="bg-base-tertiary">
-              <tr>
+              <tr className="flex w-full items-center">
                 <th className="w-1/4 text-left p-3 text-sm font-medium">
                   {t(I18nKey.SETTINGS$NAME)}
                 </th>

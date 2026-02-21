@@ -2,7 +2,6 @@ import { ComponentType } from "react";
 import { cn } from "#/utils/utils";
 
 type ConversationTabNavProps = {
-  tabValue: string;
   icon: ComponentType<{ className: string }>;
   onClick(): void;
   isActive?: boolean;
@@ -11,7 +10,6 @@ type ConversationTabNavProps = {
 };
 
 export function ConversationTabNav({
-  tabValue,
   icon: Icon,
   onClick,
   isActive,
@@ -24,7 +22,6 @@ export function ConversationTabNav({
       onClick={() => {
         onClick();
       }}
-      data-testid={`conversation-tab-${tabValue}`}
       className={cn(
         "flex items-center gap-2 rounded-md cursor-pointer",
         "pl-1.5 pr-2 py-1",

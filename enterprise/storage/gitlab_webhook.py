@@ -1,16 +1,7 @@
 import sys
 from enum import IntEnum
 
-from sqlalchemy import (
-    ARRAY,
-    Boolean,
-    Column,
-    DateTime,
-    Integer,
-    String,
-    Text,
-    text,
-)
+from sqlalchemy import ARRAY, Boolean, Column, DateTime, Integer, String, Text, text
 from storage.base import Base
 
 

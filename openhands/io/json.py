@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from typing import Any
 
 from json_repair import repair_json
 from litellm.types.utils import ModelResponse
@@ -33,7 +32,7 @@ class OpenHandsJSONEncoder(json.JSONEncoder):
 _json_encoder = OpenHandsJSONEncoder()
 
 
-def dumps(obj, **kwargs) -> str:
+def dumps(obj, **kwargs):
     """Serialize an object to str format"""
     if not kwargs:
         return _json_encoder.encode(obj)
@@ -48,7 +47,7 @@ def dumps(obj, **kwargs) -> str:
     return json.dumps(obj, **encoder_kwargs)
 
 
-def loads(json_str: str, **kwargs) -> Any:
+def loads(json_str, **kwargs):
     """Create a JSON object from str"""
     try:
         return json.loads(json_str, **kwargs)

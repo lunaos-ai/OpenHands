@@ -36,7 +36,7 @@ export function UserActions({ onLogout, user, isLoading }: UserActionsProps) {
     closeAccountMenu();
   };
 
-  const isOSS = config?.app_mode === "oss";
+  const isOSS = config?.APP_MODE === "oss";
 
   // Show the menu based on the new logic
   const showMenu =

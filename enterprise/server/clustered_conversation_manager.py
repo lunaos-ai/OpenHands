@@ -8,7 +8,8 @@ import socketio
 from server.logger import logger
 from server.utils.conversation_callback_utils import invoke_conversation_callbacks
 from storage.database import session_maker
-from storage.stored_conversation_metadata_saas import StoredConversationMetadataSaas
+from storage.saas_settings_store import SaasSettingsStore
+from storage.stored_conversation_metadata import StoredConversationMetadata
 
 from openhands.core.config import LLMConfig
 from openhands.core.config.openhands_config import OpenHandsConfig
@@ -524,18 +525,16 @@ class ClusteredConversationManager(StandaloneConversationManager):
                 )
                 # Look up the user_id from the database
                 with session_maker() as session:
-                    conversation_metadata_saas = (
-                        session.query(StoredConversationMetadataSaas)
+                    conversation_metadata = (
+                        session.query(StoredConversationMetadata)
                         .filter(
-                            StoredConversationMetadataSaas.conversation_id
+                            StoredConversationMetadata.conversation_id
                             == conversation_id
                         )
                         .first()
                     )
                     user_id = (
-                        str(conversation_metadata_saas.user_id)
-                        if conversation_metadata_saas
-                        else None
+                        conversation_metadata.user_id if conversation_metadata else None
                     )
                 # Handle the stopped conversation asynchronously
                 asyncio.create_task(
@@ -744,8 +743,6 @@ class ClusteredConversationManager(StandaloneConversationManager):
             return
 
         # Restart the agent loop
-        from storage.saas_settings_store import SaasSettingsStore
-
         config = load_openhands_config()
         settings_store = await SaasSettingsStore.get_instance(config, user_id)
         settings = await settings_store.load()

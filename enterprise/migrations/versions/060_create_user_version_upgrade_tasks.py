@@ -20,8 +20,6 @@ down_revision = '059'
 branch_labels = None
 depends_on = None
 
-# TODO: decide whether to modify this for orgs or users
-
 
 def upgrade():
     """
@@ -30,10 +28,8 @@ def upgrade():
 
     This replaces the functionality of the removed admin maintenance endpoint.
     """
-
-    # Hardcoded value to prevent migration failures when constant is removed from codebase
-    # This migration has already run in production, so we use the value that was current at the time
-    CURRENT_USER_SETTINGS_VERSION = 4
+    # Import here to avoid circular imports
+    from server.constants import CURRENT_USER_SETTINGS_VERSION
 
     # Create a connection and bind it to a session
     connection = op.get_bind()

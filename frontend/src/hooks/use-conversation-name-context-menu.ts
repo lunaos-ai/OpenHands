@@ -199,27 +199,21 @@ export function useConversationNameContextMenu({
         isPublic: newPublicState,
       });
     }
-    // Don't close menu - let user see the toggle state change
-  };
 
-  const shareUrl = React.useMemo(() => {
-    if (conversationId) {
-      return `${window.location.origin}/shared/conversations/${conversationId}`;
-    }
-    return "";
-  }, [conversationId]);
+    onContextMenuToggle?.(false);
+  };
 
   const handleCopyShareLink = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!shareUrl) {
-      onContextMenuToggle?.(false);
-      return;
+    if (conversationId) {
+      const shareUrl = `${window.location.origin}/shared/conversations/${conversationId}`;
+      navigator.clipboard.writeText(shareUrl);
+      displaySuccessToast(t(I18nKey.CONVERSATION$LINK_COPIED));
     }
 
-    navigator.clipboard.writeText(shareUrl);
-    displaySuccessToast(t(I18nKey.CONVERSATION$LINK_COPIED));
+    onContextMenuToggle?.(false);
   };
 
   return {
@@ -235,7 +229,6 @@ export function useConversationNameContextMenu({
     handleShowSkills,
     handleTogglePublic,
     handleCopyShareLink,
-    shareUrl,
     handleConfirmDelete,
     handleConfirmStop,
 

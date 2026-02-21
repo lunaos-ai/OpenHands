@@ -4,13 +4,12 @@ import { cn } from "#/utils/utils";
 const typographyVariants = cva("", {
   variants: {
     variant: {
-      h1: "text-[32px] text-white font-bold leading-5",
-      h2: "text-xl font-semibold leading-6 -tracking-[0.02em] text-white",
-      h3: "text-sm font-semibold text-gray-300",
-      span: "text-sm font-normal text-white leading-5.5",
-      p: "text-sm font-normal text-white leading-5.5",
+      h1: "text-[32px] md:text-[40px] text-[var(--hig-text-primary)] font-semibold leading-[1.08] tracking-[-0.03em]",
+      h2: "text-[22px] font-semibold leading-7 tracking-[-0.02em] text-[var(--hig-text-primary)]",
+      h3: "text-sm font-semibold text-[var(--hig-text-secondary)]",
+      span: "text-[15px] font-normal text-[var(--hig-text-secondary)] leading-6",
       codeBlock:
-        "font-mono text-sm leading-relaxed text-gray-300 whitespace-pre-wrap",
+        "font-mono text-sm leading-relaxed text-[var(--hig-text-secondary)] whitespace-pre-wrap",
     },
   },
   defaultVariants: {
@@ -42,7 +41,6 @@ export function Typography({
   );
 }
 
-// Export individual heading components for convenience
 export function H1({
   className,
   testId,
@@ -103,22 +101,8 @@ export function CodeBlock({
   );
 }
 
-export function Paragraph({
-  className,
-  testId,
-  children,
-}: Omit<TypographyProps, "variant">) {
-  return (
-    <Typography variant="p" className={className} testId={testId}>
-      {children}
-    </Typography>
-  );
-}
-
-// Attach components to Typography for the expected API
 Typography.H1 = H1;
 Typography.H2 = H2;
 Typography.H3 = H3;
 Typography.Text = Text;
 Typography.CodeBlock = CodeBlock;
-Typography.Paragraph = Paragraph;

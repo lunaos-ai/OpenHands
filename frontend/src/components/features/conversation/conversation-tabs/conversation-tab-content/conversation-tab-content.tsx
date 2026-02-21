@@ -1,4 +1,4 @@
-import { lazy, useMemo, Suspense } from "react";
+import { lazy, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ConversationLoading } from "../../conversation-loading";
 import { I18nKey } from "#/i18n/declaration";
@@ -17,70 +17,121 @@ const ServedTab = lazy(() => import("#/routes/served-tab"));
 const VSCodeTab = lazy(() => import("#/routes/vscode-tab"));
 const PlannerTab = lazy(() => import("#/routes/planner-tab"));
 
-const TAB_CONFIG = {
-  editor: {
-    component: EditorTab,
-    titleKey: I18nKey.COMMON$CHANGES,
-  },
-  browser: {
-    component: BrowserTab,
-    titleKey: I18nKey.COMMON$BROWSER,
-  },
-  served: {
-    component: ServedTab,
-    titleKey: I18nKey.COMMON$APP,
-  },
-  vscode: {
-    component: VSCodeTab,
-    titleKey: I18nKey.COMMON$CODE,
-  },
-  terminal: {
-    component: Terminal,
-    titleKey: I18nKey.COMMON$TERMINAL,
-  },
-  planner: {
-    component: PlannerTab,
-    titleKey: I18nKey.COMMON$PLANNER,
-  },
-};
-
 export function ConversationTabContent() {
   const { selectedTab, shouldShownAgentLoading } = useConversationStore();
   const { conversationId } = useConversationId();
+
   const { t } = useTranslation();
 
-  const activeTab = useMemo(
-    () => TAB_CONFIG[selectedTab ?? "editor"],
-    [selectedTab],
-  );
+  // Determine which tab is active based on the current path
+  const isEditorActive = selectedTab === "editor";
+  const isBrowserActive = selectedTab === "browser";
+  const isServedActive = selectedTab === "served";
+  const isVSCodeActive = selectedTab === "vscode";
+  const isTerminalActive = selectedTab === "terminal";
+  const isPlannerActive = selectedTab === "planner";
 
-  const ActiveComponent = activeTab.component;
-  const conversationTabTitle = t(activeTab.titleKey);
+  // Define tab configurations
+  const tabs = [
+    { key: "editor", component: EditorTab, isActive: isEditorActive },
+    {
+      key: "browser",
+      component: BrowserTab,
+      isActive: isBrowserActive,
+    },
+    { key: "served", component: ServedTab, isActive: isServedActive },
+    { key: "vscode", component: VSCodeTab, isActive: isVSCodeActive },
+    {
+      key: "terminal",
+      component: Terminal,
+      isActive: isTerminalActive,
+    },
+    {
+      key: "planner",
+      component: PlannerTab,
+      isActive: isPlannerActive,
+    },
+  ];
+
+  const conversationTabTitle = useMemo(() => {
+    if (isEditorActive) {
+      return t(I18nKey.COMMON$CHANGES);
+    }
+    if (isBrowserActive) {
+      return t(I18nKey.COMMON$BROWSER);
+    }
+    if (isServedActive) {
+      return t(I18nKey.COMMON$APP);
+    }
+    if (isVSCodeActive) {
+      return t(I18nKey.COMMON$CODE);
+    }
+    if (isTerminalActive) {
+      return t(I18nKey.COMMON$TERMINAL);
+    }
+    if (isPlannerActive) {
+      return t(I18nKey.COMMON$PLANNER);
+    }
+    return "";
+  }, [
+    isEditorActive,
+    isBrowserActive,
+    isServedActive,
+    isVSCodeActive,
+    isTerminalActive,
+    isPlannerActive,
+  ]);
+
+  const conversationKey = useMemo(() => {
+    if (isEditorActive) {
+      return "editor";
+    }
+    if (isBrowserActive) {
+      return "browser";
+    }
+    if (isServedActive) {
+      return "served";
+    }
+    if (isVSCodeActive) {
+      return "vscode";
+    }
+    if (isTerminalActive) {
+      return "terminal";
+    }
+    if (isPlannerActive) {
+      return "planner";
+    }
+    return "";
+  }, [
+    isEditorActive,
+    isBrowserActive,
+    isServedActive,
+    isVSCodeActive,
+    isTerminalActive,
+    isPlannerActive,
+  ]);
 
   if (shouldShownAgentLoading) {
-    return <ConversationLoading className="rounded-xl" />;
+    return <ConversationLoading />;
   }
 
   return (
     <TabContainer>
       <ConversationTabTitle
         title={conversationTabTitle}
-        conversationKey={selectedTab ?? "editor"}
+        conversationKey={conversationKey}
       />
-      <Suspense fallback={<ConversationLoading />}>
-        <TabContentArea>
+      <TabContentArea>
+        {tabs.map(({ key, component: Component, isActive }) => (
           <TabWrapper
-            // Force Terminal remount to reset XTerm buffer/state
-            key={
-              selectedTab === "terminal"
-                ? `${selectedTab}-${conversationId}`
-                : selectedTab
-            }
+            // Force Terminal tab remount to reset XTerm buffer/state when conversationId changes
+            key={key === "terminal" ? `${key}-${conversationId}` : key}
+            isActive={isActive}
           >
-            <ActiveComponent />
+            <Component />
           </TabWrapper>
-        </TabContentArea>
-      </Suspense>
+        ))}
+      </TabContentArea>
     </TabContainer>
   );
 }

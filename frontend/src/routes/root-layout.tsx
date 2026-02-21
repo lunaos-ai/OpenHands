@@ -5,7 +5,6 @@ import {
   Outlet,
   useNavigate,
   useLocation,
-  useSearchParams,
 } from "react-router";
 import { useTranslation } from "react-i18next";
 import { I18nKey } from "#/i18n/declaration";
@@ -26,7 +25,7 @@ import { useReoTracking } from "#/hooks/use-reo-tracking";
 import { useSyncPostHogConsent } from "#/hooks/use-sync-posthog-consent";
 import { LOCAL_STORAGE_KEYS } from "#/utils/local-storage";
 import { EmailVerificationGuard } from "#/components/features/guards/email-verification-guard";
-import { AlertBanner } from "#/components/features/alerts/alert-banner";
+import { MaintenanceBanner } from "#/components/features/maintenance/maintenance-banner";
 import { cn, isMobileDevice } from "#/utils/utils";
 import { LoadingSpinner } from "#/components/shared/loading-spinner";
 import { useAppTitle } from "#/hooks/use-app-title";
@@ -68,7 +67,6 @@ export default function MainApp() {
   const appTitle = useAppTitle();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [searchParams] = useSearchParams();
   const isOnTosPage = useIsOnTosPage();
   const { data: settings } = useSettings();
   const { migrateUserConsent } = useMigrateUserConsent();
@@ -84,27 +82,18 @@ export default function MainApp() {
 
   const [consentFormIsOpen, setConsentFormIsOpen] = React.useState(false);
 
-  // Auto-login if login method is stored in local storage
   useAutoLogin();
-
-  // Handle authentication callback and set login method after successful authentication
   useAuthCallback();
-
-  // Initialize Reo.dev tracking in SaaS mode
   useReoTracking();
-
-  // Sync PostHog opt-in/out state with backend setting on mount
   useSyncPostHogConsent();
 
   React.useEffect(() => {
-    // Don't change language when on TOS page
     if (!isOnTosPage && settings?.language) {
       i18n.changeLanguage(settings.language);
     }
   }, [settings?.language, isOnTosPage]);
 
   React.useEffect(() => {
-    // Don't show consent form when on TOS page
     if (!isOnTosPage) {
       const consentFormModalIsOpen =
         settings?.user_consents_to_analytics === null;
@@ -114,9 +103,7 @@ export default function MainApp() {
   }, [settings, isOnTosPage]);
 
   React.useEffect(() => {
-    // Don't migrate user consent when on TOS page
     if (!isOnTosPage) {
-      // Migrate user consent to the server if it was previously stored in localStorage
       migrateUserConsent({
         handleAnalyticsWasPresentInLocalStorage: () => {
           setConsentFormIsOpen(false);
@@ -126,26 +113,22 @@ export default function MainApp() {
   }, [isOnTosPage]);
 
   React.useEffect(() => {
-    if (settings?.is_new_user && config.data?.app_mode === "saas") {
+    if (settings?.is_new_user && config.data?.APP_MODE === "saas") {
       displaySuccessToast(t(I18nKey.BILLING$YOURE_IN));
     }
-  }, [settings?.is_new_user, config.data?.app_mode]);
+  }, [settings?.is_new_user, config.data?.APP_MODE]);
 
-  // Function to check if login method exists in local storage
   const checkLoginMethodExists = React.useCallback(() => {
-    // Only check localStorage if we're in a browser environment
     if (typeof window !== "undefined" && window.localStorage) {
       return localStorage.getItem(LOCAL_STORAGE_KEYS.LOGIN_METHOD) !== null;
     }
     return false;
   }, []);
 
-  // State to track if login method exists
   const [loginMethodExists, setLoginMethodExists] = React.useState(
     checkLoginMethodExists(),
   );
 
-  // Listen for storage events to update loginMethodExists when logout happens
   React.useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === LOCAL_STORAGE_KEYS.LOGIN_METHOD) {
@@ -153,7 +136,6 @@ export default function MainApp() {
       }
     };
 
-    // Also check on window focus, as logout might happen in another tab
     const handleWindowFocus = () => {
       setLoginMethodExists(checkLoginMethodExists());
     };
@@ -167,40 +149,36 @@ export default function MainApp() {
     };
   }, [checkLoginMethodExists]);
 
-  // Check login method status when auth status changes
   React.useEffect(() => {
-    // When auth status changes (especially on logout), recheck login method
     setLoginMethodExists(checkLoginMethodExists());
   }, [isAuthed, checkLoginMethodExists]);
 
   const shouldRedirectToLogin =
     config.isLoading ||
     isAuthLoading ||
+    isFetchingAuth ||
     (!isAuthed &&
       !isAuthError &&
       !isOnTosPage &&
-      config.data?.app_mode === "saas" &&
+      config.data?.APP_MODE === "saas" &&
       !loginMethodExists);
 
   React.useEffect(() => {
     if (shouldRedirectToLogin) {
-      // Include search params in returnTo to preserve query string (e.g., user_code for device OAuth)
-      const searchString = searchParams.toString();
-      let fullPath = "";
-      if (pathname !== "/") {
-        fullPath = searchString ? `${pathname}?${searchString}` : pathname;
-      }
-      const loginUrl = fullPath
-        ? `/login?returnTo=${encodeURIComponent(fullPath)}`
+      const returnTo = pathname !== "/" ? pathname : "";
+      const loginUrl = returnTo
+        ? `/login?returnTo=${encodeURIComponent(returnTo)}`
         : "/login";
       navigate(loginUrl, { replace: true });
     }
-  }, [shouldRedirectToLogin, pathname, searchParams, navigate]);
+  }, [shouldRedirectToLogin, pathname, navigate]);
 
   if (shouldRedirectToLogin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base">
-        <LoadingSpinner size="large" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="hig-surface rounded-3xl px-10 py-9">
+          <LoadingSpinner size="large" />
+        </div>
       </div>
     );
   }
@@ -210,37 +188,27 @@ export default function MainApp() {
     !isAuthError &&
     !isFetchingAuth &&
     !isOnTosPage &&
-    config.data?.app_mode === "saas" &&
+    config.data?.APP_MODE === "saas" &&
     loginMethodExists;
 
   return (
     <div
       data-testid="root-layout"
       className={cn(
-        "h-screen lg:min-w-5xl flex flex-col md:flex-row bg-base",
-        pathname === "/" ? "p-0" : "p-0 md:p-3 md:pl-0",
+        "h-screen lg:min-w-5xl flex flex-col md:flex-row gap-2 md:gap-3 p-2 md:p-4",
         isMobileDevice() && "overflow-hidden",
       )}
     >
       <title>{appTitle}</title>
       <Sidebar />
 
-      <div className="flex flex-col w-full h-[calc(100%-50px)] md:h-full gap-3">
-        {config.data &&
-          (config.data.maintenance_start_time ||
-            (config.data.faulty_models &&
-              config.data.faulty_models.length > 0) ||
-            config.data.error_message) && (
-            <AlertBanner
-              maintenanceStartTime={config.data.maintenance_start_time}
-              faultyModels={config.data.faulty_models}
-              errorMessage={config.data.error_message}
-              updatedAt={config.data.updated_at}
-            />
-          )}
+      <div className="hig-surface rounded-[24px] flex flex-col w-full h-[calc(100%-54px)] md:h-full gap-3 p-2 md:p-4">
+        {config.data?.MAINTENANCE && (
+          <MaintenanceBanner startTime={config.data.MAINTENANCE.startTime} />
+        )}
         <div
           id="root-outlet"
-          className="flex-1 relative overflow-auto custom-scrollbar"
+          className="hig-surface-muted rounded-[18px] flex-1 relative overflow-auto custom-scrollbar"
         >
           <EmailVerificationGuard>
             <Outlet />
@@ -249,7 +217,7 @@ export default function MainApp() {
       </div>
 
       {renderReAuthModal && <ReauthModal />}
-      {config.data?.app_mode === "oss" && consentFormIsOpen && (
+      {config.data?.APP_MODE === "oss" && consentFormIsOpen && (
         <AnalyticsConsentFormModal
           onClose={() => {
             setConsentFormIsOpen(false);
@@ -257,8 +225,8 @@ export default function MainApp() {
         />
       )}
 
-      {config.data?.feature_flags.enable_billing &&
-        config.data?.app_mode === "saas" &&
+      {config.data?.FEATURE_FLAGS.ENABLE_BILLING &&
+        config.data?.APP_MODE === "saas" &&
         settings?.is_new_user && <SetupPaymentModal />}
     </div>
   );

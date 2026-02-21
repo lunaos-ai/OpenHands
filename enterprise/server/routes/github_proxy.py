@@ -1,7 +1,6 @@
 import hashlib
 import json
 import os
-import zlib
 from base64 import b64decode, b64encode
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -52,11 +51,7 @@ def add_github_proxy_routes(app: FastAPI):
         state_payload = json.dumps(
             [query_params['state'][0], query_params['redirect_uri'][0]]
         )
-        # Compress before encrypting to reduce URL length
-        # This is critical for feature deployments where reCAPTCHA tokens in state
-        # can cause "URL too long" errors from GitHub
-        compressed_payload = zlib.compress(state_payload.encode())
-        state = b64encode(_fernet().encrypt(compressed_payload)).decode()
+        state = b64encode(_fernet().encrypt(state_payload.encode())).decode()
         query_params['state'] = [state]
         query_params['redirect_uri'] = [
             f'https://{request.url.netloc}/github-proxy/callback'
@@ -72,9 +67,7 @@ def add_github_proxy_routes(app: FastAPI):
         parsed_url = urlparse(str(request.url))
         query_params = parse_qs(parsed_url.query)
         state = query_params['state'][0]
-        # Decrypt and decompress (reverse of github_proxy_start)
-        decrypted_payload = _fernet().decrypt(b64decode(state.encode()))
-        decrypted_state = zlib.decompress(decrypted_payload).decode()
+        decrypted_state = _fernet().decrypt(b64decode(state.encode())).decode()
 
         # Build query Params
         state, redirect_uri = json.loads(decrypted_state)

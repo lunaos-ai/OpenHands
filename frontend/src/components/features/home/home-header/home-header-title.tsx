@@ -5,7 +5,7 @@ export function HomeHeaderTitle() {
   const { t } = useTranslation();
 
   return (
-    <div className="h-[80px] flex items-center">
+    <div className="min-h-[88px] flex items-center justify-center text-center px-2">
       <Typography.H1>{t("HOME$LETS_START_BUILDING")}</Typography.H1>
     </div>
   );

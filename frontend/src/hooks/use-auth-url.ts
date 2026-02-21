@@ -1,10 +1,10 @@
 import { generateAuthUrl } from "#/utils/generate-auth-url";
-import { WebClientConfig } from "#/api/option-service/option.types";
+import { GetConfigResponse } from "#/api/option-service/option.types";
 
 interface UseAuthUrlConfig {
-  appMode: WebClientConfig["app_mode"] | null;
+  appMode: GetConfigResponse["APP_MODE"] | null;
   identityProvider: string;
-  authUrl?: WebClientConfig["auth_url"];
+  authUrl?: GetConfigResponse["AUTH_URL"];
 }
 
 export const useAuthUrl = (config: UseAuthUrlConfig) => {

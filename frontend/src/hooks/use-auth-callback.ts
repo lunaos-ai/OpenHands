@@ -15,7 +15,7 @@ export const useAuthCallback = () => {
 
   useEffect(() => {
     // Only run in SAAS mode
-    if (config?.app_mode !== "saas") {
+    if (config?.APP_MODE !== "saas") {
       return;
     }
 
@@ -62,7 +62,7 @@ export const useAuthCallback = () => {
     isAuthLoading,
     location.search,
     location.pathname,
-    config?.app_mode,
+    config?.APP_MODE,
     navigate,
   ]);
 };

@@ -1,6 +1,5 @@
 import React from "react";
 import { useLocation } from "react-router";
-import { useTranslation } from "react-i18next";
 import { useGitUser } from "#/hooks/query/use-git-user";
 import { UserActions } from "./user-actions";
 import { OpenHandsLogoButton } from "#/components/shared/buttons/openhands-logo-button";
@@ -13,13 +12,11 @@ import { ConversationPanelWrapper } from "../conversation-panel/conversation-pan
 import { useLogout } from "#/hooks/mutation/use-logout";
 import { useConfig } from "#/hooks/query/use-config";
 import { displayErrorToast } from "#/utils/custom-toast-handlers";
-import { I18nKey } from "#/i18n/declaration";
 import { MicroagentManagementButton } from "#/components/shared/buttons/microagent-management-button";
 import { cn } from "#/utils/utils";
 
 export function Sidebar() {
-  const { t } = useTranslation();
-  const { pathname } = useLocation();
+  const location = useLocation();
   const user = useGitUser();
   const { data: config } = useConfig();
   const {
@@ -35,46 +32,39 @@ export function Sidebar() {
   const [conversationPanelIsOpen, setConversationPanelIsOpen] =
     React.useState(false);
 
+  const { pathname } = useLocation();
+
   React.useEffect(() => {
-    if (pathname === "/settings") {
+    if (location.pathname === "/settings") {
       setSettingsModalIsOpen(false);
     } else if (
       !isFetchingSettings &&
       settingsIsError &&
       settingsError?.status !== 404
     ) {
-      // We don't show toast errors for settings in the global error handler
-      // because we have a special case for 404 errors
       displayErrorToast(
         "Something went wrong while fetching settings. Please reload the page.",
       );
-    } else if (
-      config?.app_mode === "oss" &&
-      settingsError?.status === 404 &&
-      !config?.feature_flags?.hide_llm_settings
-    ) {
+    } else if (config?.APP_MODE === "oss" && settingsError?.status === 404) {
       setSettingsModalIsOpen(true);
     }
   }, [
-    pathname,
-    isFetchingSettings,
-    settingsIsError,
+    settingsError?.status,
     settingsError,
-    config?.app_mode,
-    config?.feature_flags?.hide_llm_settings,
+    isFetchingSettings,
+    location.pathname,
   ]);
 
   return (
     <>
       <aside
-        aria-label={t(I18nKey.SIDEBAR$NAVIGATION_LABEL)}
         className={cn(
-          "h-[54px] p-3 md:p-0 md:h-[40px] md:h-auto flex flex-row md:flex-col gap-1 bg-base md:w-[75px] md:min-w-[75px] sm:pt-0 sm:px-2 md:pt-[14px] md:px-0",
-          pathname === "/" && "md:pt-6.5 md:pb-3",
+          "hig-surface h-[54px] p-2 md:p-0 md:h-auto flex flex-row md:flex-col rounded-[18px] md:rounded-[22px] md:w-[86px] md:min-w-[86px] md:pt-4 md:pb-3",
+          pathname === "/" && "md:pt-5",
         )}
       >
-        <nav className="flex flex-row md:flex-col items-center justify-between w-full h-auto md:w-auto md:h-full">
-          <div className="flex flex-row md:flex-col items-center gap-[26px]">
+        <nav className="flex flex-row md:flex-col items-center justify-between w-full h-full px-2 md:px-0">
+          <div className="flex flex-row md:flex-col items-center gap-5 md:gap-6">
             <div className="flex items-center justify-center">
               <OpenHandsLogoButton />
             </div>
@@ -95,7 +85,7 @@ export function Sidebar() {
             />
           </div>
 
-          <div className="flex flex-row md:flex-col md:items-center gap-[26px]">
+          <div className="flex flex-row md:flex-col md:items-center gap-5 md:gap-6">
             <UserActions
               user={
                 user.data ? { avatar_url: user.data.avatar_url } : undefined

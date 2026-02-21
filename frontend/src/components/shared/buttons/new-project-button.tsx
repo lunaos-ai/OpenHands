@@ -15,7 +15,11 @@ export function NewProjectButton({ disabled = false }: NewProjectButtonProps) {
   const startNewProject = t(I18nKey.CONVERSATION$START_NEW);
 
   return (
-    <StyledTooltip content={startNewProject} placement="right">
+    <StyledTooltip
+      content={startNewProject}
+      placement="right"
+      tooltipClassName="bg-transparent"
+    >
       <NavLink
         to="/"
         data-testid="new-project-button"

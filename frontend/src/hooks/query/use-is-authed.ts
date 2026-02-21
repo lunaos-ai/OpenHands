@@ -8,7 +8,7 @@ export const useIsAuthed = () => {
   const { data: config } = useConfig();
   const isOnTosPage = useIsOnTosPage();
 
-  const appMode = config?.app_mode;
+  const appMode = config?.APP_MODE;
 
   return useQuery({
     queryKey: ["user", "authenticated", appMode],

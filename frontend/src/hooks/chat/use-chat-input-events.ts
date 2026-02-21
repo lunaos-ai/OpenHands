@@ -68,12 +68,6 @@ export const useChatInputEvents = (
         return;
       }
 
-      // Ignore Enter key during IME composition (e.g., Chinese, Japanese, Korean input)
-      // When using IME, Enter is used to confirm the composition, not to submit
-      if (e.nativeEvent.isComposing) {
-        return;
-      }
-
       if (checkIsContentEmpty()) {
         e.preventDefault();
         increaseHeightForEmptyContent();

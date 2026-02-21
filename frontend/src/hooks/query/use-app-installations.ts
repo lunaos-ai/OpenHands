@@ -17,7 +17,7 @@ export const useAppInstallations = (selectedProvider: Provider | null) => {
     enabled:
       userIsAuthenticated &&
       !!selectedProvider &&
-      shouldUseInstallationRepos(selectedProvider, config?.app_mode),
+      shouldUseInstallationRepos(selectedProvider, config?.APP_MODE),
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 15, // 15 minutes
   });

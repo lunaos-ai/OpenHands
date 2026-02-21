@@ -4,7 +4,6 @@ import { useIsAuthed } from "#/hooks/query/use-is-authed";
 import { useConfig } from "#/hooks/query/use-config";
 import { useGitHubAuthUrl } from "#/hooks/use-github-auth-url";
 import { useEmailVerification } from "#/hooks/use-email-verification";
-import { useInvitation } from "#/hooks/use-invitation";
 import { LoginContent } from "#/components/features/auth/login-content";
 import { EmailVerificationModal } from "#/components/features/waitlist/email-verification-modal";
 
@@ -18,25 +17,22 @@ export default function LoginPage() {
   const {
     emailVerified,
     hasDuplicatedEmail,
-    recaptchaBlocked,
     emailVerificationModalOpen,
     setEmailVerificationModalOpen,
-    userId,
   } = useEmailVerification();
 
-  const { hasInvitation, buildOAuthStateData } = useInvitation();
-
   const gitHubAuthUrl = useGitHubAuthUrl({
-    appMode: config.data?.app_mode || null,
-    authUrl: config.data?.auth_url,
+    appMode: config.data?.APP_MODE || null,
+    gitHubClientId: config.data?.GITHUB_CLIENT_ID || null,
+    authUrl: config.data?.AUTH_URL,
   });
 
   // Redirect OSS mode users to home
   React.useEffect(() => {
-    if (!config.isLoading && config.data?.app_mode === "oss") {
+    if (!config.isLoading && config.data?.APP_MODE === "oss") {
       navigate("/", { replace: true });
     }
-  }, [config.isLoading, config.data?.app_mode, navigate]);
+  }, [config.isLoading, config.data?.APP_MODE, navigate]);
 
   // Redirect authenticated users away from login page
   React.useEffect(() => {
@@ -54,7 +50,7 @@ export default function LoginPage() {
   }
 
   // Don't render login content if user is authenticated or in OSS mode
-  if (isAuthed || config.data?.app_mode === "oss") {
+  if (isAuthed || config.data?.APP_MODE === "oss") {
     return null;
   }
 
@@ -66,14 +62,11 @@ export default function LoginPage() {
       >
         <LoginContent
           githubAuthUrl={gitHubAuthUrl}
-          appMode={config.data?.app_mode}
-          authUrl={config.data?.auth_url}
-          providersConfigured={config.data?.providers_configured}
+          appMode={config.data?.APP_MODE}
+          authUrl={config.data?.AUTH_URL}
+          providersConfigured={config.data?.PROVIDERS_CONFIGURED}
           emailVerified={emailVerified}
           hasDuplicatedEmail={hasDuplicatedEmail}
-          recaptchaBlocked={recaptchaBlocked}
-          hasInvitation={hasInvitation}
-          buildOAuthStateData={buildOAuthStateData}
         />
       </main>
 
@@ -82,7 +75,6 @@ export default function LoginPage() {
           onClose={() => {
             setEmailVerificationModalOpen(false);
           }}
-          userId={userId}
         />
       )}
     </>

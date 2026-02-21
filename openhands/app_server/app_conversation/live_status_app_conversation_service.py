@@ -7,6 +7,7 @@ import zipfile
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from time import time
 from typing import Any, AsyncGenerator, Sequence
 from uuid import UUID, uuid4
 
@@ -18,7 +19,6 @@ from openhands.agent_server.models import (
     ConversationInfo,
     SendMessageRequest,
     StartConversationRequest,
-    TextContent,
 )
 from openhands.app_server.app_conversation.app_conversation_info_service import (
     AppConversationInfoService,
@@ -33,7 +33,6 @@ from openhands.app_server.app_conversation.app_conversation_models import (
     AppConversationStartTask,
     AppConversationStartTaskStatus,
     AppConversationUpdateRequest,
-    PluginSpec,
 )
 from openhands.app_server.app_conversation.app_conversation_service import (
     AppConversationService,
@@ -79,15 +78,12 @@ from openhands.app_server.utils.llm_metadata import (
 )
 from openhands.experiments.experiment_manager import ExperimentManagerImpl
 from openhands.integrations.provider import ProviderType
-from openhands.integrations.service_types import SuggestedTask
 from openhands.sdk import Agent, AgentContext, LocalWorkspace
 from openhands.sdk.llm import LLM
-from openhands.sdk.plugin import PluginSource
-from openhands.sdk.secret import LookupSecret, SecretValue, StaticSecret
+from openhands.sdk.secret import LookupSecret, StaticSecret
 from openhands.sdk.utils.paging import page_iterator
 from openhands.sdk.workspace.remote.async_remote_workspace import AsyncRemoteWorkspace
 from openhands.server.types import AppMode
-from openhands.storage.data_models.conversation_metadata import ConversationTrigger
 from openhands.tools.preset.default import (
     get_default_tools,
 )
@@ -119,6 +115,7 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
     openhands_provider_base_url: str | None
     access_token_hard_timeout: timedelta | None
     app_mode: str | None = None
+    keycloak_auth_cookie: str | None = None
     tavily_api_key: str | None = None
 
     async def search_app_conversations(
@@ -212,8 +209,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
                 )
             self._inherit_configuration_from_parent(request, parent_info)
 
-        self._apply_suggested_task(request)
-
         task = AppConversationStartTask(
             created_by_user_id=user_id,
             request=request,
@@ -244,7 +239,7 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
                 working_dir=sandbox_spec.working_dir,
             )
             async for updated_task in self.run_setup_scripts(
-                task, sandbox, remote_workspace, agent_server_url
+                task, sandbox, remote_workspace
             ):
                 yield updated_task
 
@@ -261,7 +256,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
                     request.conversation_id,
                     remote_workspace=remote_workspace,
                     selected_repository=request.selected_repository,
-                    plugins=request.plugins,
                 )
             )
 
@@ -483,17 +477,9 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         self, task: AppConversationStartTask
     ) -> AsyncGenerator[AppConversationStartTask, None]:
         """Wait for sandbox to start and return info."""
-        # Get or create the sandbox
+        # Get the sandbox
         if not task.request.sandbox_id:
-            # Convert conversation_id to hex string if present
-            sandbox_id_str = (
-                task.request.conversation_id.hex
-                if task.request.conversation_id is not None
-                else None
-            )
-            sandbox = await self.sandbox_service.start_sandbox(
-                sandbox_id=sandbox_id_str
-            )
+            sandbox = await self.sandbox_service.start_sandbox()
             task.sandbox_id = sandbox.id
         else:
             sandbox_info = await self.sandbox_service.get_sandbox(
@@ -503,34 +489,45 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
                 raise SandboxError(f'Sandbox not found: {task.request.sandbox_id}')
             sandbox = sandbox_info
 
-        # Update the listener with sandbox info
+        # Update the listener
         task.status = AppConversationStartTaskStatus.WAITING_FOR_SANDBOX
         task.sandbox_id = sandbox.id
         yield task
 
-        # Resume if paused
         if sandbox.status == SandboxStatus.PAUSED:
             await self.sandbox_service.resume_sandbox(sandbox.id)
-
-        # Check for immediate error states
         if sandbox.status in (None, SandboxStatus.ERROR):
             raise SandboxError(f'Sandbox status: {sandbox.status}')
-
-        # For non-STARTING/RUNNING states (except PAUSED which we just resumed), fail fast
-        if sandbox.status not in (
-            SandboxStatus.STARTING,
-            SandboxStatus.RUNNING,
-            SandboxStatus.PAUSED,
-        ):
+        if sandbox.status == SandboxStatus.RUNNING:
+            # There are still bugs in the remote runtime - they report running while still just
+            # starting resulting in a race condition. Manually check that it is actually
+            # running.
+            if await self._check_agent_server_alive(sandbox):
+                return
+        if sandbox.status != SandboxStatus.STARTING:
             raise SandboxError(f'Sandbox not startable: {sandbox.id}')
 
-        # Use shared wait_for_sandbox_running utility to poll for ready state
-        await self.sandbox_service.wait_for_sandbox_running(
-            sandbox.id,
-            timeout=self.sandbox_startup_timeout,
-            poll_interval=self.sandbox_startup_poll_frequency,
-            httpx_client=self.httpx_client,
-        )
+        start = time()
+        while time() - start <= self.sandbox_startup_timeout:
+            await asyncio.sleep(self.sandbox_startup_poll_frequency)
+            sandbox_info = await self.sandbox_service.get_sandbox(sandbox.id)
+            if sandbox_info is None:
+                raise SandboxError(f'Sandbox not found: {sandbox.id}')
+            if sandbox.status not in (SandboxStatus.STARTING, SandboxStatus.RUNNING):
+                raise SandboxError(f'Sandbox not startable: {sandbox.id}')
+            if sandbox_info.status == SandboxStatus.RUNNING:
+                # There are still bugs in the remote runtime - they report running while still just
+                # starting resulting in a race condition. Manually check that it is actually
+                # running.
+                if await self._check_agent_server_alive(sandbox_info):
+                    return
+        raise SandboxError(f'Sandbox failed to start: {sandbox.id}')
+
+    async def _check_agent_server_alive(self, sandbox_info: SandboxInfo) -> bool:
+        agent_server_url = self._get_agent_server_url(sandbox_info)
+        url = f'{agent_server_url.rstrip("/")}/alive'
+        response = await self.httpx_client.get(url)
+        return response.is_success
 
     def _get_agent_server_url(self, sandbox: SandboxInfo) -> str:
         """Get agent server url for running sandbox."""
@@ -574,55 +571,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         if not request.llm_model and parent_info.llm_model:
             request.llm_model = parent_info.llm_model
 
-    def _apply_suggested_task(self, request: AppConversationStartRequest) -> None:
-        """Apply suggested task defaults to the start request."""
-        suggested_task: SuggestedTask | None = request.suggested_task
-        if not suggested_task:
-            return
-
-        if request.initial_message is not None:
-            raise ValueError(
-                'initial_message cannot be provided when suggested_task is present'
-            )
-
-        prompt = suggested_task.get_prompt_for_task()
-        if not prompt:
-            raise ValueError(
-                f'Suggested task returned empty prompt for task type {suggested_task.task_type}'
-            )
-        request.initial_message = SendMessageRequest(
-            role='user',
-            content=[TextContent(text=prompt)],
-        )
-        request.trigger = ConversationTrigger.SUGGESTED_TASK
-
-        if not request.selected_repository:
-            request.selected_repository = suggested_task.repo
-        if not request.git_provider:
-            request.git_provider = suggested_task.git_provider
-
-    def _compute_plan_path(
-        self,
-        working_dir: str,
-        git_provider: ProviderType | None,
-    ) -> str:
-        """Compute the PLAN.md path based on provider type.
-
-        Args:
-            working_dir: The workspace working directory
-            git_provider: The git provider type (GitHub, GitLab, Azure DevOps, etc.)
-
-        Returns:
-            Absolute path to PLAN.md file in the appropriate config directory
-        """
-        # GitLab and Azure DevOps use agents-tmp-config (since .agents_tmp is invalid)
-        if git_provider in (ProviderType.GITLAB, ProviderType.AZURE_DEVOPS):
-            config_dir = 'agents-tmp-config'
-        else:
-            config_dir = '.agents_tmp'
-
-        return f'{working_dir}/{config_dir}/PLAN.md'
-
     async def _setup_secrets_for_git_providers(self, user: UserInfo) -> dict:
         """Set up secrets for all git provider authentication.
 
@@ -657,6 +605,10 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
                     expires_in=self.access_token_hard_timeout,
                 )
                 headers = {'X-Access-Token': access_token}
+
+                # Include keycloak_auth cookie in headers if app_mode is SaaS
+                if self.app_mode == 'saas' and self.keycloak_auth_cookie:
+                    headers['Cookie'] = f'keycloak_auth={self.keycloak_auth_cookie}'
 
                 secrets[secret_name] = LookupSecret(
                     url=self.web_url + '/api/v1/webhooks/secrets',
@@ -908,9 +860,7 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         system_message_suffix: str | None,
         mcp_config: dict,
         condenser_max_size: int | None,
-        secrets: dict[str, SecretValue] | None = None,
-        git_provider: ProviderType | None = None,
-        working_dir: str | None = None,
+        secrets: dict | None = None,
     ) -> Agent:
         """Create an agent with appropriate tools and context based on agent type.
 
@@ -921,8 +871,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             mcp_config: MCP configuration dictionary
             condenser_max_size: condenser_max_size setting
             secrets: Optional dictionary of secrets for authentication
-            git_provider: Optional git provider type for computing plan path
-            working_dir: Optional working directory for computing plan path
 
         Returns:
             Configured Agent instance with context
@@ -932,14 +880,9 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
 
         # Create agent based on type
         if agent_type == AgentType.PLAN:
-            # Compute plan path if working_dir is provided
-            plan_path = None
-            if working_dir:
-                plan_path = self._compute_plan_path(working_dir, git_provider)
-
             agent = Agent(
                 llm=llm,
-                tools=get_planning_tools(plan_path=plan_path),
+                tools=get_planning_tools(),
                 system_prompt_filename='system_prompt_planning.j2',
                 system_prompt_kwargs={'plan_structure': format_plan_structure()},
                 condenser=condenser,
@@ -1020,78 +963,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             return agent.model_copy(update=updates)
         return agent
 
-    def _construct_initial_message_with_plugin_params(
-        self,
-        initial_message: SendMessageRequest | None,
-        plugins: list[PluginSpec] | None,
-    ) -> SendMessageRequest | None:
-        """Incorporate plugin parameters into the initial message if specified.
-
-        Plugin parameters are formatted and appended to the initial message so the
-        agent has context about the user-provided configuration values.
-
-        Args:
-            initial_message: The original initial message, if any
-            plugins: List of plugin specifications with optional parameters
-
-        Returns:
-            The initial message with plugin parameters incorporated, or the
-            original message if no plugin parameters are specified
-        """
-        from openhands.agent_server.models import TextContent
-
-        if not plugins:
-            return initial_message
-
-        # Collect formatted parameters from plugins that have them
-        plugins_with_params = [p for p in plugins if p.parameters]
-        if not plugins_with_params:
-            return initial_message
-
-        # Format parameters, grouped by plugin if multiple
-        if len(plugins_with_params) == 1:
-            params_text = plugins_with_params[0].format_params_as_text()
-            plugin_params_message = (
-                f'\n\nPlugin Configuration Parameters:\n{params_text}'
-            )
-        else:
-            # Group by plugin name for clarity
-            formatted_plugins = []
-            for plugin in plugins_with_params:
-                params_text = plugin.format_params_as_text(indent='  ')
-                if params_text:
-                    formatted_plugins.append(f'{plugin.display_name}:\n{params_text}')
-
-            plugin_params_message = (
-                '\n\nPlugin Configuration Parameters:\n' + '\n'.join(formatted_plugins)
-            )
-
-        if initial_message is None:
-            # Create a new message with just the plugin parameters
-            return SendMessageRequest(
-                content=[TextContent(text=plugin_params_message.strip())],
-                run=True,
-            )
-
-        # Append plugin parameters to existing message content
-        new_content = list(initial_message.content)
-        if new_content and isinstance(new_content[-1], TextContent):
-            # Append to the last text content
-            last_content = new_content[-1]
-            new_content[-1] = TextContent(
-                text=last_content.text + plugin_params_message,
-                cache_prompt=last_content.cache_prompt,
-            )
-        else:
-            # Add as new text content
-            new_content.append(TextContent(text=plugin_params_message.strip()))
-
-        return SendMessageRequest(
-            role=initial_message.role,
-            content=new_content,
-            run=initial_message.run,
-        )
-
     async def _finalize_conversation_request(
         self,
         agent: Agent,
@@ -1099,12 +970,11 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         user: UserInfo,
         workspace: LocalWorkspace,
         initial_message: SendMessageRequest | None,
-        secrets: dict[str, SecretValue],
+        secrets: dict,
         sandbox: SandboxInfo,
         remote_workspace: AsyncRemoteWorkspace | None,
         selected_repository: str | None,
         working_dir: str,
-        plugins: list[PluginSpec] | None = None,
     ) -> StartConversationRequest:
         """Finalize the conversation request with experiment variants and skills.
 
@@ -1119,7 +989,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             remote_workspace: Optional remote workspace for skills loading
             selected_repository: Optional repository name
             working_dir: Working directory path
-            plugins: Optional list of plugin specifications to load
 
         Returns:
             Complete StartConversationRequest ready for use
@@ -1146,23 +1015,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
                 _logger.warning(f'Failed to load skills: {e}', exc_info=True)
                 # Continue without skills - don't fail conversation startup
 
-        # Incorporate plugin parameters into initial message if specified
-        final_initial_message = self._construct_initial_message_with_plugin_params(
-            initial_message, plugins
-        )
-
-        # Convert PluginSpec list to SDK PluginSource list for agent server
-        sdk_plugins: list[PluginSource] | None = None
-        if plugins:
-            sdk_plugins = [
-                PluginSource(
-                    source=p.source,
-                    ref=p.ref,
-                    repo_path=p.repo_path,
-                )
-                for p in plugins
-            ]
-
         # Create and return the final request
         return StartConversationRequest(
             conversation_id=conversation_id,
@@ -1171,9 +1023,8 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             confirmation_policy=self._select_confirmation_policy(
                 bool(user.confirmation_mode), user.security_analyzer
             ),
-            initial_message=final_initial_message,
+            initial_message=initial_message,
             secrets=secrets,
-            plugins=sdk_plugins,
         )
 
     async def _build_start_conversation_request_for_user(
@@ -1188,7 +1039,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         conversation_id: UUID | None = None,
         remote_workspace: AsyncRemoteWorkspace | None = None,
         selected_repository: str | None = None,
-        plugins: list[PluginSpec] | None = None,
     ) -> StartConversationRequest:
         """Build a complete conversation request for a user.
 
@@ -1197,7 +1047,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         2. Configuring LLM and MCP settings
         3. Creating an agent with appropriate context
         4. Finalizing the request with skills and experiment variants
-        5. Passing plugins to the agent server for remote plugin loading
         """
         user = await self.user_context.get_user_info()
         workspace = LocalWorkspace(working_dir=working_dir)
@@ -1216,8 +1065,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             mcp_config,
             user.condenser_max_size,
             secrets=secrets,
-            git_provider=git_provider,
-            working_dir=working_dir,
         )
 
         # Finalize and return the conversation request
@@ -1232,7 +1079,6 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             remote_workspace,
             selected_repository,
             working_dir,
-            plugins=plugins,
         )
 
     async def update_agent_server_conversation_title(
@@ -1287,14 +1133,13 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
         self, conversation_id: UUID, request: AppConversationUpdateRequest
     ) -> AppConversation | None:
         """Update an app conversation and return it. Return None if the conversation
-        did not exist.
-        """
+        did not exist."""
         info = await self.app_conversation_info_service.get_app_conversation_info(
             conversation_id
         )
         if info is None:
             return None
-        for field_name in AppConversationUpdateRequest.model_fields:
+        for field_name in request.model_fields:
             value = getattr(request, field_name)
             setattr(info, field_name, value)
         info = await self.app_conversation_info_service.save_app_conversation_info(info)
@@ -1459,7 +1304,7 @@ class LiveStatusAppConversationService(AppConversationServiceBase):
             # Get all events for this conversation
             i = 0
             async for event in page_iterator(
-                self.event_service.search_events, conversation_id=conversation_id
+                self.event_service.search_events, conversation_id__eq=conversation_id
             ):
                 event_filename = f'event_{i:06d}_{event.id}.json'
                 event_path = os.path.join(temp_dir, event_filename)
@@ -1559,14 +1404,17 @@ class LiveStatusAppConversationServiceInjector(AppConversationServiceInjector):
                 if isinstance(sandbox_service, DockerSandboxService):
                     web_url = f'http://host.docker.internal:{sandbox_service.host_port}'
 
-            # Get app_mode for SaaS mode
+            # Get app_mode and keycloak_auth cookie for SaaS mode
             app_mode = None
+            keycloak_auth_cookie = None
             try:
                 from openhands.server.shared import server_config
 
                 app_mode = (
                     server_config.app_mode.value if server_config.app_mode else None
                 )
+                if request and server_config.app_mode == AppMode.SAAS:
+                    keycloak_auth_cookie = request.cookies.get('keycloak_auth')
             except (ImportError, AttributeError):
                 # If server_config is not available (e.g., in tests), continue without it
                 pass
@@ -1596,5 +1444,6 @@ class LiveStatusAppConversationServiceInjector(AppConversationServiceInjector):
                 openhands_provider_base_url=config.openhands_provider_base_url,
                 access_token_hard_timeout=access_token_hard_timeout,
                 app_mode=app_mode,
+                keycloak_auth_cookie=keycloak_auth_cookie,
                 tavily_api_key=tavily_api_key,
             )

@@ -2,28 +2,56 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Outfit:wght@100..900&display=swap');
 
 :root {
-  --bg-dark: #0c0e10;
-  --bg-light: #292929;
-  --bg-input: #393939;
-  --bg-workspace: #1f2228;
-  --border: #3c3c4a;
-  --text-editor-base: #9099ac;
-  --text-editor-active: #c4cbda;
-  --bg-editor-sidebar: #24272e;
-  --bg-editor-active: #31343d;
-  --border-editor-sidebar: #3c3c4a;
-  background-color: var(--base) !important;
-  --bg-neutral-muted: #afb8c133;
+  --base: #0b111a;
+  --bg-dark: #0b111a;
+  --bg-light: #151d2a;
+  --bg-input: #1d2737;
+  --bg-workspace: #121826;
+  --border: rgba(154, 176, 204, 0.26);
+  --text-editor-base: #9eb2cf;
+  --text-editor-active: #e2ebfb;
+  --bg-editor-sidebar: rgba(11, 17, 26, 0.72);
+  --bg-editor-active: rgba(22, 31, 46, 0.92);
+  --border-editor-sidebar: rgba(154, 176, 204, 0.28);
+  --bg-neutral-muted: rgba(175, 184, 193, 0.2);
+
+  --hig-bg-top: #10213d;
+  --hig-bg-bottom: #0b111a;
+  --hig-surface: rgba(20, 30, 44, 0.7);
+  --hig-surface-strong: rgba(23, 34, 51, 0.92);
+  --hig-surface-muted: rgba(26, 38, 56, 0.58);
+  --hig-border: rgba(200, 222, 255, 0.2);
+  --hig-border-soft: rgba(200, 222, 255, 0.12);
+  --hig-text-primary: #edf4ff;
+  --hig-text-secondary: #b7c7e2;
+  --hig-accent: #0a84ff;
+  --hig-accent-pressed: #0071e3;
+  --hig-success: #30d158;
+  --hig-warning: #ffd60a;
+  --hig-danger: #ff453a;
 }
 
 body {
   margin: 0;
   font-family:
-    -apple-system, "SF Pro", BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+    "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Roboto", "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: var(--hig-text-primary);
+  background:
+    radial-gradient(
+      1100px 620px at 18% -5%,
+      color-mix(in srgb, var(--hig-accent) 20%, transparent) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      900px 640px at 82% -10%,
+      color-mix(in srgb, #64d2ff 22%, transparent) 0%,
+      transparent 58%
+    ),
+    linear-gradient(180deg, var(--hig-bg-top) 0%, var(--hig-bg-bottom) 62%);
+  min-height: 100vh;
 }
 
 code {
@@ -65,4 +93,27 @@ code {
 .fast-smooth-scroll {
   scroll-behavior: smooth;
   scroll-timeline: 100ms;
+}
+
+.hig-surface {
+  background: var(--hig-surface);
+  border: 1px solid var(--hig-border);
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(24px) saturate(1.18);
+}
+
+.hig-surface-muted {
+  background: var(--hig-surface-muted);
+  border: 1px solid var(--hig-border-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px) saturate(1.12);
+}
+
+.hig-focus-ring:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--hig-accent) 58%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--hig-accent) 26%, transparent);
 }

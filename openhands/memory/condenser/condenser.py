@@ -40,6 +40,11 @@ class Condensation(BaseModel):
 
     action: CondensationAction
 
+    @property
+    def event(self) -> CondensationAction:
+        """Backward-compatible alias for legacy call sites/tests."""
+        return self.action
+
 
 class Condenser(ABC):
     """Abstract condenser interface.

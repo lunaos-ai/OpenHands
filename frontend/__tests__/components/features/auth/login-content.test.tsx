@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -25,25 +25,6 @@ vi.mock("#/hooks/use-tracking", () => ({
   useTracking: () => ({
     trackLoginButtonClick: vi.fn(),
   }),
-}));
-
-vi.mock("#/hooks/query/use-config", () => ({
-  useConfig: () => ({
-    data: undefined,
-  }),
-}));
-
-vi.mock("#/hooks/use-recaptcha", () => ({
-  useRecaptcha: () => ({
-    isReady: false,
-    isLoading: false,
-    error: null,
-    executeRecaptcha: vi.fn().mockResolvedValue(null),
-  }),
-}));
-
-vi.mock("#/utils/custom-toast-handlers", () => ({
-  displayErrorToast: vi.fn(),
 }));
 
 describe("LoginContent", () => {
@@ -150,11 +131,7 @@ describe("LoginContent", () => {
     });
     await user.click(githubButton);
 
-    // Wait for async handleAuthRedirect to complete
-    // The URL includes state parameter added by handleAuthRedirect
-    await waitFor(() => {
-      expect(window.location.href).toContain(mockUrl);
-    });
+    expect(window.location.href).toBe(mockUrl);
   });
 
   it("should display email verified message when emailVerified is true", () => {
@@ -201,104 +178,5 @@ describe("LoginContent", () => {
     );
 
     expect(screen.getByTestId("terms-and-privacy-notice")).toBeInTheDocument();
-  });
-
-  it("should display invitation pending message when hasInvitation is true", () => {
-    render(
-      <MemoryRouter>
-        <LoginContent
-          githubAuthUrl="https://github.com/oauth/authorize"
-          appMode="saas"
-          providersConfigured={["github"]}
-          hasInvitation
-        />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText("AUTH$INVITATION_PENDING")).toBeInTheDocument();
-  });
-
-  it("should not display invitation pending message when hasInvitation is false", () => {
-    render(
-      <MemoryRouter>
-        <LoginContent
-          githubAuthUrl="https://github.com/oauth/authorize"
-          appMode="saas"
-          providersConfigured={["github"]}
-          hasInvitation={false}
-        />
-      </MemoryRouter>,
-    );
-
-    expect(
-      screen.queryByText("AUTH$INVITATION_PENDING"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("should call buildOAuthStateData when clicking auth button", async () => {
-    const user = userEvent.setup();
-    const mockBuildOAuthStateData = vi.fn((baseState) => ({
-      ...baseState,
-      invitation_token: "inv-test-token-12345",
-    }));
-
-    render(
-      <MemoryRouter>
-        <LoginContent
-          githubAuthUrl="https://github.com/login/oauth/authorize"
-          appMode="saas"
-          providersConfigured={["github"]}
-          buildOAuthStateData={mockBuildOAuthStateData}
-        />
-      </MemoryRouter>,
-    );
-
-    const githubButton = screen.getByRole("button", {
-      name: "GITHUB$CONNECT_TO_GITHUB",
-    });
-    await user.click(githubButton);
-
-    await waitFor(() => {
-      expect(mockBuildOAuthStateData).toHaveBeenCalled();
-      const callArg = mockBuildOAuthStateData.mock.calls[0][0];
-      expect(callArg).toHaveProperty("redirect_url");
-    });
-  });
-
-  it("should encode state with invitation token when buildOAuthStateData provides token", async () => {
-    const user = userEvent.setup();
-    const mockBuildOAuthStateData = vi.fn((baseState) => ({
-      ...baseState,
-      invitation_token: "inv-test-token-12345",
-    }));
-
-    render(
-      <MemoryRouter>
-        <LoginContent
-          githubAuthUrl="https://github.com/login/oauth/authorize"
-          appMode="saas"
-          providersConfigured={["github"]}
-          buildOAuthStateData={mockBuildOAuthStateData}
-        />
-      </MemoryRouter>,
-    );
-
-    const githubButton = screen.getByRole("button", {
-      name: "GITHUB$CONNECT_TO_GITHUB",
-    });
-    await user.click(githubButton);
-
-    await waitFor(() => {
-      const redirectUrl = window.location.href;
-      // The URL should contain an encoded state parameter
-      expect(redirectUrl).toContain("state=");
-      // Decode and verify the state contains invitation_token
-      const url = new URL(redirectUrl);
-      const state = url.searchParams.get("state");
-      if (state) {
-        const decodedState = JSON.parse(atob(state));
-        expect(decodedState.invitation_token).toBe("inv-test-token-12345");
-      }
-    });
   });
 });

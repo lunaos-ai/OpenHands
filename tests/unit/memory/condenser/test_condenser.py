@@ -152,12 +152,11 @@ class RollingCondenserTestHarness:
             for callback in self.callbacks:
                 callback(state.history)
 
-            match self.condenser.condensed_history(state):
-                case View() as view:
-                    yield view
-
-                case Condensation(event=condensation_event):
-                    state.history.append(condensation_event)
+            result = self.condenser.condensed_history(state)
+            if isinstance(result, View):
+                yield result
+            elif isinstance(result, Condensation):
+                state.history.append(result.event)
 
     def expected_size(self, index: int, max_size: int) -> int:
         """Calculate the expected size of the view at the given index.

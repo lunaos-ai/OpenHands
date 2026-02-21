@@ -61,8 +61,7 @@ export const useCreateConversation = () => {
           query,
           repository?.branch,
           conversationInstructions,
-          suggestedTask,
-          undefined, // trigger - set by backend when applicable
+          undefined, // trigger - will be set by backend
           parentConversationId,
           agentType,
         );

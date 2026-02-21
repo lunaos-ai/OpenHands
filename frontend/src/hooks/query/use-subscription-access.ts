@@ -12,7 +12,7 @@ export const useSubscriptionAccess = () => {
     queryFn: BillingService.getSubscriptionAccess,
     enabled:
       !isOnTosPage &&
-      config?.app_mode === "saas" &&
-      config?.feature_flags?.enable_billing,
+      config?.APP_MODE === "saas" &&
+      config?.FEATURE_FLAGS?.ENABLE_BILLING,
   });
 };

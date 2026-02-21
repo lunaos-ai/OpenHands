@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from openhands.events.observation.agent import AgentStateChangedObservation
-
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
@@ -15,6 +10,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy import Enum as SQLEnum
 from storage.base import Base
 
+from openhands.events.observation.agent import AgentStateChangedObservation
 from openhands.utils.import_utils import get_impl
 
 
@@ -37,7 +33,7 @@ class ConversationCallbackProcessor(BaseModel, ABC):
     async def __call__(
         self,
         callback: ConversationCallback,
-        observation: 'AgentStateChangedObservation',
+        observation: AgentStateChangedObservation,
     ) -> None:
         """
         Process a conversation event.
