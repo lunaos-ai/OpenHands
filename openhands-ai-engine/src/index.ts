@@ -12,15 +12,91 @@ type Bindings = {
     OPENAI_API_KEY: string;
     OPENCLAW_URL?: string;
     OPENCLAW_SERVICE_KEY?: string;
+    OPENHANDS_API_KEY?: string;
 }
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-// Middleware to initialize services
+// ─── Rate Limiting (in-memory per-isolate, resets on deploy) ─────────────
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+const RATE_LIMITS = {
+    WINDOW_MS: 60_000,       // 1 minute window
+    MAX_REQUESTS: 10,        // 10 requests per minute per IP
+    MAX_DAILY: 200,          // 200 requests per day per IP
+};
+
+const dailyMap = new Map<string, { count: number; resetAt: number }>();
+
+function getRateLimitKey(c: any): string {
+    return c.req.header('cf-connecting-ip')
+        || c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
+        || 'unknown';
+}
+
+// Rate limit + auth middleware
 app.use('*', async (c, next) => {
+    // Skip rate limiting for health/root
+    if (c.req.path === '/' || c.req.path === '/health') {
+        return next();
+    }
+
     if (!c.env.OPENAI_API_KEY) {
         return c.json({ error: 'Missing OPENAI_API_KEY' }, 500);
     }
+
+    // Require API key for all POST endpoints
+    if (c.req.method === 'POST') {
+        const authHeader = c.req.header('authorization');
+        const apiKey = c.env.OPENHANDS_API_KEY;
+
+        if (apiKey) {
+            if (!authHeader || authHeader !== `Bearer ${apiKey}`) {
+                return c.json({ error: 'Unauthorized — invalid or missing API key' }, 401);
+            }
+        }
+    }
+
+    // Per-minute rate limit
+    const ip = getRateLimitKey(c);
+    const now = Date.now();
+
+    let minute = rateLimitMap.get(ip);
+    if (!minute || now > minute.resetAt) {
+        minute = { count: 0, resetAt: now + RATE_LIMITS.WINDOW_MS };
+        rateLimitMap.set(ip, minute);
+    }
+    minute.count++;
+
+    if (minute.count > RATE_LIMITS.MAX_REQUESTS) {
+        const retryAfter = Math.ceil((minute.resetAt - now) / 1000);
+        c.header('Retry-After', String(retryAfter));
+        return c.json({
+            error: 'Rate limit exceeded — max 10 requests per minute',
+            retryAfter,
+        }, 429);
+    }
+
+    // Per-day rate limit
+    const dayKey = `${ip}-day`;
+    let day = dailyMap.get(dayKey);
+    if (!day || now > day.resetAt) {
+        day = { count: 0, resetAt: now + 86_400_000 };
+        dailyMap.set(dayKey, day);
+    }
+    day.count++;
+
+    if (day.count > RATE_LIMITS.MAX_DAILY) {
+        return c.json({
+            error: 'Daily limit exceeded — max 200 requests per day',
+        }, 429);
+    }
+
+    // Set usage headers
+    c.header('X-RateLimit-Limit', String(RATE_LIMITS.MAX_REQUESTS));
+    c.header('X-RateLimit-Remaining', String(Math.max(0, RATE_LIMITS.MAX_REQUESTS - minute.count)));
+    c.header('X-RateLimit-Daily-Remaining', String(Math.max(0, RATE_LIMITS.MAX_DAILY - day.count)));
+
     await next();
 });
 
