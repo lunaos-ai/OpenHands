@@ -9,11 +9,13 @@ with the discriminated union system used by Pydantic for validation.
 
 # Import base classes and processors without circular dependencies
 from .event_callback_models import EventCallbackProcessor, LoggingCallbackProcessor
+from .clawpipe_callback_processor import ClawPipeCallbackProcessor
 
 # Note: SetTitleCallbackProcessor is not imported here to avoid circular imports
 # It will be registered when imported elsewhere in the application
 
 __all__ = [
     'EventCallbackProcessor',
+    'ClawPipeCallbackProcessor',
     'LoggingCallbackProcessor',
 ]
